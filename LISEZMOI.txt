@@ -1,0 +1,98 @@
+INFOCHIMIE UK — PLATEFORME D'INFORMATIQUE APPLIQUÉE À LA CHIMIE
+Cours « ChemSketch et Avogadro : dessiner les structures 2D et 3D »
+Version en ligne, synchronisée en temps réel avec Firebase
+Développée par M. Alhouseny CISSE et son assistant Sory BAGAYOKO
+=====================================================================
+
+Projet Firebase : infochimie-uk
+Adresse du site une fois publié : https://infochimie-uk.web.app
+
+CE QUI CHANGE
+- Toutes les données (comptes, progression, quiz, dépôts de TP, corrections, notifications,
+  évaluations, cours ajoutés) sont enregistrées dans la Realtime Database du projet :
+  https://infochimie-uk-default-rtdb.europe-west1.firebasedatabase.app/
+- Les changements apparaissent en direct sur tous les appareils : une correction faite par un
+  enseignant arrive aussitôt chez l'étudiant, une leçon terminée s'affiche aussitôt dans le
+  « Contrôle des étudiants », etc.
+- Une pastille en haut de l'écran indique l'état : « En ligne », « Synchronisation… »,
+  « Hors ligne » (les modifications partent au retour du réseau) ou « Erreur de synchronisation ».
+- Si quelqu'un est en train de saisir un formulaire ou de travailler dans un atelier, la page
+  n'est pas rechargée : un bouton « Nouvelles données · Actualiser » apparaît en bas à droite.
+- Chaque étudiant ne télécharge que ses propres données (plus rapide, et moins de lectures).
+- Les fichiers déposés (images, PDF) sont rangés à part et chargés seulement à l'ouverture.
+- Ouverte depuis le disque (double-clic sur index.html) ou dans l'aperçu claude.ai, la plateforme
+  reste en « Mode local » : les données restent alors dans le navigateur, comme avant.
+
+NOUVEAUTÉS DE CETTE VERSION
+- Nouveau nom : INFOCHIMIE UK (barre du haut, page d'accueil, titres, documents).
+- Tous les cours se téléchargent en PDF : chaque leçon, chaque module, le cours complet,
+  les fiches de TP, les guides, les exercices corrigés et les relevés de notes.
+  Les PDF contiennent les illustrations des composés (structures 2D et modèles 3D en image).
+- Images des composés : boutons « Image PNG » et « Image SVG » dans l'atelier 2D, « Image PNG »
+  dans l'atelier 3D, bouton « Image » sur les figures des leçons, et 131 composés standard
+  téléchargeables en PNG, SVG ou image 3D (Bibliothèque › Composés standard en image).
+- Ateliers 2D et 3D : zone « Écrire un composé ». On peut écrire :
+    * un nom : éthanol, propan-2-ol, but-2-ène, acide propanoïque, éthanoate d'éthyle,
+      2-méthylpropane, cyclohexanol, 1,2-dichloroéthane…
+    * une formule semi-développée : CH3-CH2-OH, CH3-CO-CH3, CH2=CH-CH3, HC≡CH, (CH3)3C-OH, C6H5-COOH
+    * une formule brute : C2H6O, C4H10 (la plateforme propose les isomères connus)
+    * un SMILES : CCO, CC(=O)O, c1ccccc1
+  Boutons rapides (eau, méthane, éthanol…) et fenêtre « Composés standard » classée par familles.
+
+MISE EN LIGNE (une seule fois)
+1. Ouvrez https://console.firebase.google.com et choisissez le projet infochimie-uk.
+2. La base est déjà créée : Realtime Database (europe-west1). Rien à créer.
+3. Activez la connexion anonyme : Créer › Authentication › Commencer › onglet « Sign-in method »
+   › « Anonyme » › Activer › Enregistrer.
+4. Sur votre ordinateur, installez Node.js (https://nodejs.org), puis dans une invite de commandes :
+       npm install -g firebase-tools
+       firebase login
+5. Placez-vous dans ce dossier (celui qui contient firebase.json) et lancez :
+       firebase deploy
+   Cette commande publie le site ET les règles de sécurité de la base (database.rules.json).
+   (Sans l'outil en ligne de commande, vous pouvez aussi copier le contenu de database.rules.json
+   dans la console : Realtime Database › Règles › Publier.)
+   Ces règles remplacent les règles « mode test » (ouvertes à tous jusqu'au 23/12/2026) : seuls
+   les visiteurs de l'application peuvent lire et écrire, et les index (.indexOn) permettent
+   à chaque étudiant de ne télécharger que ses propres données.
+6. Ouvrez https://infochimie-uk.web.app. Au premier lancement, la base est créée
+   automatiquement avec les données de démonstration.
+
+À FAIRE JUSTE APRÈS LA MISE EN LIGNE
+- Connectez-vous dans l'Espace administrateur avec ADM-001 puis ADM-002 (mot de passe initial
+  Guinée224@) et changez immédiatement les deux mots de passe dans « Profil ».
+  En ligne, ce mot de passe initial n'est plus affiché sur la page de connexion.
+- Quand les vrais étudiants arrivent : Évaluations et sauvegarde › « Mettre en service » supprime
+  l'enseignant et les étudiants de démonstration.
+- Pour reprendre les données de l'ancienne version (aperçu ou fichier autonome) : dans l'ancienne
+  version, Évaluations et sauvegarde › Exporter une sauvegarde ; dans la nouvelle, Restaurer.
+
+MISES À JOUR DU SITE
+- Modifiez les fichiers du dossier public, puis relancez « firebase deploy ».
+- La configuration du projet se trouve dans public/js/firebase-config.js
+  (backend: 'rtdb' = Realtime Database ; backend: 'firestore' = Cloud Firestore, si un jour vous changez).
+
+SÉCURITÉ — À LIRE
+- Les règles actuelles réservent la base aux visiteurs de l'application, mais toute personne qui
+  ouvre le site peut, avec des outils de développeur, lire et modifier les données. C'est suffisant
+  pour des essais et la démonstration, pas pour des notes officielles.
+- Étape suivante recommandée avant l'usage réel avec des étudiants : passer les comptes sur Firebase
+  Authentication (un compte Firebase par utilisateur) et des règles par rôle (un étudiant ne lit que
+  ses données, seuls enseignants et administrateurs voient les résultats de tous).
+
+LICENCES DES COMPOSANTS INCLUS
+- jsPDF (création des PDF dans le navigateur) : licence MIT — public/js/vendor/jspdf.umd.min.js
+- Police Source Sans 3 (Adobe), réduite aux caractères utiles : licence SIL Open Font License 1.1
+  — public/js/vendor/pdf-fonts.js
+
+LIMITES DE L'OFFRE GRATUITE FIREBASE (Spark) — Realtime Database
+- 100 connexions simultanées au maximum (un onglet ouvert = une connexion). Au-delà, les nouveaux
+  visiteurs ne peuvent pas se connecter : pour une grande promotion connectée en même temps,
+  passez au forfait Blaze (paiement à l'usage).
+- 1 Go de données stockées et environ 10 Go téléchargés par mois.
+- Un étudiant ne télécharge que ses propres données ; un enseignant ou un administrateur
+  télécharge l'ensemble des étudiants.
+- Les fichiers déposés restent limités à 700 Ko (TP) et 1 Mo (documents) pour ménager l'espace.
+- Hors ligne : la page continue de fonctionner et envoie les modifications au retour du réseau,
+  à condition de ne pas fermer l'onglet entre-temps.
+- Suivi de la consommation : console Firebase › Realtime Database › Utilisation.

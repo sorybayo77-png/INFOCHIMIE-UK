@@ -1,0 +1,82 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "config": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": [
+        "_idn",
+        "role"
+      ]
+    },
+    "progress": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "draws": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "mols": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "attempts": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": [
+        "u"
+      ]
+    },
+    "subs": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": [
+        "uid"
+      ]
+    },
+    "notifs": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": [
+        "uid"
+      ]
+    },
+    "logs": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "evals": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": [
+        "uid"
+      ]
+    },
+    "lessons": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "questions": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "videos": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "docs": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "fichiers": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}
