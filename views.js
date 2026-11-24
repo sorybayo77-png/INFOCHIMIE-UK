@@ -122,7 +122,6 @@ ${badge(470, 33, 1)}${badge(570, 56, 2)}${badge(222, 88, 3)}${badge(222, 238, 4)
   const demoBtn = (u, sub) => `<button class="btn" data-act="demoLogin" data-id="${u.id}">${I(u.role === 'admin' ? 'shield' : u.role === 'enseignant' ? 'book' : 'user')} <span>${esc(u.name)}<small>${esc(sub)}</small></span></button>`;
   A.route(/^connexion$/, () => {
     const tab = A.loginTab === 'enseignant' ? 'enseignant' : 'etudiant', etu = tab === 'etudiant';
-    const dStu = A.DB.users.find((u) => u.id === 'u-etu' && u.demo), dEns = A.DB.users.find((u) => u.id === 'u-ens' && u.demo);
     return {
       title: 'Connexion', html: `<div class="auth"><div class="card formcard" style="width:100%">
 <h1 style="font-size:28px">Connexion</h1><p class="muted">Accédez à vos cours, travaux pratiques et résultats.</p>
@@ -132,7 +131,6 @@ ${badge(470, 33, 1)}${badge(570, 56, 2)}${badge(222, 88, 3)}${badge(222, 238, 4)
 <div class="field"><label for="lg-p">Mot de passe</label><input id="lg-p" name="pw" type="password" autocomplete="current-password" required></div>
 <div id="lg-err" aria-live="polite"></div><button class="btn pri" style="width:100%">Se connecter</button></form>
 <p class="small" style="margin-top:12px"><a href="#mot-de-passe">Mot de passe oublié ?</a>${etu ? ' · <a href="#inscription">Créer un compte étudiant</a>' : ''}</p>
-${(etu ? dStu : dEns) ? `<hr><h4>Compte de démonstration</h4><div class="demo-acc">${etu ? demoBtn(dStu, 'Matricule ' + dStu.matricule) : demoBtn(dEns, dEns.email)}</div><p class="muted small" style="margin-top:8px">Mot de passe des comptes de démonstration : <b>${esc(A.DEMO_PW)}</b></p>` : ''}
 <hr><p class="small" style="margin:0">Vous êtes administrateur ? <a href="#connexion-admin">Accéder à l’espace administrateur</a></p></div></div>`
     };
   }, { public: true, guest: true });
@@ -140,7 +138,6 @@ ${(etu ? dStu : dEns) ? `<hr><h4>Compte de démonstration</h4><div class="demo-a
 
   // ---------- fenêtre de connexion réservée aux administrateurs ----------
   A.route(/^connexion-admin$/, () => {
-    const demoAdm = A.DB.demo && A.cloud.mode !== 'cloud' ? A.admins().filter((u) => u.active !== false && u.pwDefault) : [];
     return {
       title: 'Espace administrateur', html: `<div class="auth admin-auth"><div class="card formcard admin-card" style="width:100%">
 <div class="admin-badge">${I('shield', 26)}</div><h1 style="font-size:28px">Espace administrateur</h1>
@@ -150,7 +147,6 @@ ${(etu ? dStu : dEns) ? `<hr><h4>Compte de démonstration</h4><div class="demo-a
 <div class="field"><label for="la-p">Mot de passe</label><input id="la-p" name="pw" type="password" autocomplete="current-password" required></div>
 <div id="lg-err" aria-live="polite"></div><button class="btn pri" style="width:100%">${I('shield', 18)} Entrer dans l’espace administrateur</button></form>
 <p class="small muted" style="margin-top:12px">Après 5 tentatives incorrectes, l’accès est bloqué pendant une minute.</p>
-${demoAdm.length ? `<hr><h4>Comptes administrateurs (mot de passe initial)</h4><div class="demo-acc">${demoAdm.map((u) => demoBtn(u, u.code + ' · ' + (u.titre || 'Administrateur'))).join('')}</div><p class="muted small" style="margin-top:8px">Mot de passe initial : <b>${esc(A.DEMO_PW)}</b>, à changer dès la première connexion.</p>` : ''}
 <p class="small" style="margin-top:12px"><a href="#connexion">Retour à la connexion étudiants et enseignants</a></p></div></div>`
     };
   }, { public: true, guest: true });

@@ -69,67 +69,33 @@
     admin: Object.fromEntries(A.PERMS.map(([k]) => [k, true]))
   });
 
+  // base de départ : uniquement les deux comptes administrateurs (aucun compte de démonstration)
   function seed() {
-    const now = Date.now(), D = 86400000;
-    const U = (id, name, role, extra) => ({ id, name, role, pw: A.hashPw(id, A.DEMO_PW), active: true, created: now - 40 * D, ...extra });
+    const now = Date.now();
+    const U = (id, name, role, extra) => ({ id, name, role, pw: A.hashPw(id, A.DEMO_PW), active: true, created: now, ...extra });
     const users = [
       U('u-adm1', 'M. Alhouseny CISSE', 'admin', { code: 'ADM-001', titre: 'Administrateur principal', dept: 'Administration de la plateforme', pwDefault: true }),
-      U('u-adm2', 'Sory BAGAYOKO', 'admin', { code: 'ADM-002', titre: 'Administrateur, assistant', dept: 'Administration de la plateforme', pwDefault: true }),
-      U('u-ens', 'Dr Ibrahima Sylla', 'enseignant', { email: 'enseignant@demo.edu', dept: 'Département de chimie', demo: true }),
-      U('u-etu', 'Mariama Bah', 'etudiant', { matricule: '20200104962', filiere: 'Licence 2 Chimie', demo: true }),
-      U('u-e2', 'Mamadou Camara', 'etudiant', { matricule: '20200105118', filiere: 'Licence 2 Chimie', demo: true }),
-      U('u-e3', 'Fatoumata Barry', 'etudiant', { matricule: '20210107354', filiere: 'Licence 1 Sciences et technologies', demo: true }),
-      U('u-e4', 'Ousmane Keita', 'etudiant', { matricule: '20190102271', filiere: 'Licence 3 Chimie analytique', demo: true })
+      U('u-adm2', 'Sory BAGAYOKO', 'admin', { code: 'ADM-002', titre: 'Administrateur, assistant', dept: 'Administration de la plateforme', pwDefault: true })
     ];
-    const lessonsOf = (mods) => K.modules.filter((m) => mods.includes(m.id)).flatMap((m) => m.lessons.map((l) => l.id));
-    const P = (ids, d0) => Object.fromEntries(ids.map((id, k) => [id, now - (d0 - k * 0.6) * D]));
-    const progress = {
-      'u-etu': P(lessonsOf([1, 2]).concat(['3-1', '3-2']), 9),
-      'u-e2': P(lessonsOf([1, 2, 3, 4]).concat(['5-1', '5-2']), 20),
-      'u-e3': P(['1-1', '1-2'], 4),
-      'u-e4': P(lessonsOf([1, 2, 3, 4, 5, 6]), 30)
-    };
-    const att = [];
-    const gen = (uid, mod, ok, days) => {
-      const qs = K.modules[mod - 1].quiz; const snap = qs.map((q) => ({ ...q }));
-      const answers = qs.map((q, i) => { const good = i < ok; return { given: q.t === 'court' ? (good ? q.acc[0] : '?') : (good ? q.a : (q.a + 1) % q.o.length), ok: good }; });
-      att.push({ id: A.uid('a-'), uid, kind: 'module', ref: mod, score: ok, max: qs.length, date: now - days * D, qs: snap, answers });
-    };
-    gen('u-etu', 1, 5, 8); gen('u-etu', 2, 5, 3);
-    gen('u-e2', 1, 6, 18); gen('u-e2', 2, 6, 15); gen('u-e2', 3, 6, 10); gen('u-e2', 4, 5, 6);
-    gen('u-e3', 1, 3, 2);
-    gen('u-e4', 1, 6, 28); gen('u-e4', 2, 7, 25); gen('u-e4', 3, 7, 20); gen('u-e4', 4, 6, 15); gen('u-e4', 5, 6, 9); gen('u-e4', 6, 5, 5);
-    att.push({ id: A.uid('a-'), uid: 'u-e4', kind: 'exam', ref: 'final', score: 12, max: 15, date: now - 2 * D, qs: [], answers: [] });
-    const waterMol = C.toMolfile({ name: 'eau', atoms: [{ el: 'O', x: 0, y: 0, z: 0 }, { el: 'H', x: 0.757, y: -0.586, z: 0 }, { el: 'H', x: -0.757, y: -0.586, z: 0 }], bonds: [{ a: 0, b: 1, o: 1 }, { a: 0, b: 2, o: 1 }] }, { name: 'Eau' });
-    const ch4 = C.toXYZ(C.REF3D.methane(), 'Methane - Avogadro');
-    const subs = [
-      { id: 's-1', uid: 'u-e2', tp: 1, date: now - 12 * D, comment: 'Structure de l’eau et formule développée.', files: [{ name: 'CAMARA_Mamadou_TP1.mol', size: waterMol.length, type: 'mol', text: waterMol }], status: 'corrige', grade: 16, feedback: 'Très bien. Pensez à indiquer la masse molaire sur l’image exportée.', gradedBy: 'u-ens', gradedAt: now - 10 * D },
-      { id: 's-2', uid: 'u-e3', tp: 1, date: now - 2 * D, comment: 'Premier essai.', files: [{ name: 'BARRY_Fatoumata_TP1.mol', size: waterMol.length, type: 'mol', text: waterMol }], status: 'corrige', grade: 12, feedback: 'Structure correcte, mais il manque la formule développée H–O–H demandée.', gradedBy: 'u-ens', gradedAt: now - D },
-      { id: 's-3', uid: 'u-etu', tp: 1, date: now - 1 * D, comment: 'Molécule d’eau dessinée dans ChemSketch, exportée en MOL.', files: [{ name: 'BAH_Mariama_TP1.mol', size: waterMol.length, type: 'mol', text: waterMol }], status: 'rendu' },
-      { id: 's-4', uid: 'u-e4', tp: 4, date: now - 3 * D, comment: 'Méthane construit et optimisé ; angle H–C–H mesuré à 109,5°.', files: [{ name: 'KEITA_Ousmane_TP4.xyz', size: ch4.length, type: 'xyz', text: ch4 }], status: 'rendu' }
-    ];
-    const N = (uid, text, link, days, read) => ({ id: A.uid('n-'), uid, text, link, date: now - days * D, read: !!read });
-    const notifs = [
-      N('u-etu', 'Bienvenue sur la plateforme ! Commencez par le module 1.', 'module-1', 9, true),
-      N('u-etu', 'Le module 3 « Dessin des structures chimiques en 2D » est disponible.', 'module-3', 2),
-      N('u-e2', 'Votre TP 1 a été corrigé : 16/20.', 'tp-1', 10),
-      N('u-ens', 'Nouveau dépôt : Mariama Bah — TP 1.', 'corrections', 1),
-      N('u-ens', 'Nouveau dépôt : Ousmane Keita — TP 4.', 'corrections', 3)
-    ];
-    const logs = [
-      { date: now - 3 * D, uid: 'u-e4', act: 'Dépôt de travail', det: 'TP 4' },
-      { date: now - 2 * D, uid: 'u-e4', act: 'Examen final terminé', det: '12/15' },
-      { date: now - D - 3600e3, uid: 'u-ens', act: 'Correction', det: 'Fatoumata Barry — TP 1 : 12/20' },
-      { date: now - D, uid: 'u-etu', act: 'Dépôt de travail', det: 'TP 1' },
-      { date: now - 5 * D, uid: 'u-adm1', act: 'Évaluation de l’évolution', det: 'Mamadou Camara (20200105118) : 15/20' }
-    ];
-    const evals = [{ id: 'ev-1', uid: 'u-e2', by: 'u-adm1', date: now - 5 * D, global: 15, comment: 'Bonne régularité sur les modules 1 à 4. Poursuivre avec le module 5 avant l’examen final.', mods: { 1: 16, 2: 16, 3: 14, 4: 15 }, snap: { prog: 58, avg: 0.85 } }];
     return {
-      v: 2, demo: true, evals, users, session: null, progress, attempts: att, subs, notifs, logs, lessons: [], questions: [], videos: [], docs: [], mols: {}, draws: { 'u-etu': { d1: now - 6 * D, d3: now - 5 * D }, 'u-e4': { d1: now - 20 * D, d2: now - 20 * D, d3: now - 19 * D, d9: now - 12 * D } },
+      v: 2, demo: false, evals: [], users, session: null, progress: {}, attempts: [], subs: [], notifs: [], logs: [{ id: A.uid('l-'), date: now, uid: null, act: 'Création de la plateforme', det: 'comptes administrateurs' }],
+      lessons: [], questions: [], videos: [], docs: [], mols: {}, draws: {},
       modState: Object.fromEntries(K.modules.map((m) => [m.id, true])), perms: defPerms(),
-      settings: { examMin: 20, examN: 15, examMax: 3, examOpen: true }, seededAt: now
+      settings: { examMin: 20, examN: 15, examMax: 3, examOpen: true }, seededAt: now, liveAt: now
     };
   }
+  // suppression des comptes de démonstration (anciennes bases) et de tout ce qui leur est rattaché
+  A.purgeDemo = () => {
+    const D = A.DB, demo = new Set(D.users.filter((u) => u.demo).map((u) => u.id));
+    if (demo.size) {
+      const keep = (uid) => !demo.has(uid);
+      D.users = D.users.filter((u) => !demo.has(u.id)); D.attempts = D.attempts.filter((a) => keep(a.uid)); D.subs = D.subs.filter((x) => keep(x.uid));
+      D.notifs = D.notifs.filter((n) => keep(n.uid)); D.evals = D.evals.filter((e) => keep(e.uid)); D.logs = D.logs.filter((l) => !l.uid || keep(l.uid));
+      ['progress', 'mols', 'draws'].forEach((k) => Object.keys(D[k] || {}).forEach((id) => { if (demo.has(id)) delete D[k][id]; }));
+    }
+    D.demo = false; D.liveAt = D.liveAt || Date.now();
+    return demo.size;
+  };
   // remplacement complet de la base (réinitialisation, restauration) ; en ligne, cloud.js remplace ces fonctions
   A.replaceDB = (o, after) => { A.DB = o; A.save(); if (after) after(); };
   A.reset = () => A.replaceDB(seed());

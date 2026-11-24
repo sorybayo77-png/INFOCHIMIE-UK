@@ -307,6 +307,10 @@
     })));
     if (token !== scopeToken) return;
     BUCKET.forEach((c) => (A.DB[c] || []).sort((a, b) => (a.date || 0) - (b.date || 0)));
+    if (u && u.role === 'admin' && A.DB.demo) {
+      const n = A.purgeDemo(); A.log('Comptes de démonstration supprimés', n + ' compte(s)'); A.save();
+      setTimeout(() => A.toast(n ? n + ' compte(s) de démonstration supprimé(s) de la base' : 'Plateforme mise en service'), 400);
+    }
     S.loading = false; A.render();
   }
   function onChanges(p, list, lid, live) {
@@ -398,7 +402,8 @@
   }
   A.boot = async () => {
     const hosted = /^https?:$/.test(location.protocol) && !G.claude && CFG && !CFG.disabled;
-    if (!hosted) { S.mode = 'local'; A.render(); return; }
+    const localStart = () => { S.mode = 'local'; S.loading = false; if (A.DB.demo) { A.purgeDemo(); A.save(); } A.render(); };
+    if (!hosted) { localStart(); return; }
     let cspBlocked = false; const onCsp = (e) => { if (/gstatic|firebase/.test(String(e.blockedURI || '') + String(e.sourceFile || ''))) cspBlocked = true; };
     document.addEventListener('securitypolicyviolation', onCsp);
     BK = (CFG.backend === 'firestore' || (!CFG.databaseURL && CFG.backend !== 'rtdb')) ? FS_BK : RT_BK; S.backend = BK.name;
@@ -406,7 +411,7 @@
     try { F = await loadSDK(BK.mods); }
     catch (e) {
       await new Promise((r) => setTimeout(r, 150));
-      if (cspBlocked || G.claude) { S.mode = 'local'; S.loading = false; A.render(); return; }
+      if (cspBlocked || G.claude) { localStart(); return; }
       return fatal('offline', e);
     } finally { document.removeEventListener('securitypolicyviolation', onCsp); }
     // les fonctions d'enregistrement passent désormais par la base en ligne
