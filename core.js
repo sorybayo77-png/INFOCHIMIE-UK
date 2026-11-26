@@ -107,7 +107,7 @@
 
   // ---------- administrateur principal (unique) ----------
   // Seule l'empreinte PBKDF2 du mot de passe figure ici, jamais le mot de passe lui-même.
-  A.VERSION = '5.3 du 26 novembre 2026';
+  A.VERSION = '5.4 du 26 novembre 2026';
   A.PRINCIPAL_CODE = 'BAGLAM-001';
   const PRINCIPAL_HASH = 'pbkdf2$200000$8906d87c0de8182947ceb45294b00c04$2cd38a54aff17e64a795c85da5a3e10c3f1c96b72b02b8ceaec3f58c0a9e502b';
   A.principalRecord = () => ({ id: 'u-principal', name: 'Administrateur principal', role: 'admin', code: A.PRINCIPAL_CODE, principal: true, titre: 'Administrateur principal', dept: 'Administration de la plateforme', pw: PRINCIPAL_HASH, active: true, created: Date.now() });
@@ -135,10 +135,11 @@
       if (String(u.code || '').toUpperCase() === A.PRINCIPAL_CODE) { recode(D, u, A.nextAdminCode(D)); changed = true; }
       if (u.principal) { delete u.principal; changed = true; }
     });
-    // anciens comptes administrateurs de démonstration encore protégés par le mot de passe public : désactivés
-    D.users.forEach((u) => { if (u !== p && u.role === 'admin' && u.active !== false && u.pwDefault && /^ADM-00[12]$/i.test(String(u.code || '')) && A.verifyHash && A.verifyHash(u.pw, A.DEMO_PW, u.id)) { u.active = false; u.demoLocked = true; changed = true; } });
+    if (A.lockLegacyAdmins(D)) changed = true;
     return changed;
   };
+  // anciens comptes administrateurs de démonstration encore protégés par le mot de passe public : désactivés
+  A.lockLegacyAdmins = (D) => { let changed = false; (D.users || []).forEach((u) => { if (u.id !== 'u-principal' && u.role === 'admin' && u.active !== false && u.pwDefault && /^ADM-00[12]$/i.test(String(u.code || '')) && A.verifyHash && A.verifyHash(u.pw, A.DEMO_PW, u.id)) { u.active = false; u.demoLocked = true; changed = true; } }); return changed; };
   A.adminTitle = (u) => (A.isPrincipal(u) ? 'Administrateur principal' : (!u.titre || /principal/i.test(u.titre) ? 'Administrateur' : u.titre));
   A.DEMO_PW = 'Guinée224@';
   A.PW_HINT = 'Au moins 8 caractères, avec une majuscule, une minuscule, un chiffre et un caractère spécial (exemple : Guinée224@).';

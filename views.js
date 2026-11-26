@@ -176,13 +176,14 @@ ${(etu ? dStu : dEns) ? `<hr><h4>Compte de démonstration</h4><div class="demo-a
     const key = kind + ':' + idf.toLowerCase(), fl = fails[key] || { n: 0, until: 0 };
     if (fl.until > Date.now()) return err('Trop de tentatives. Réessayez dans ' + Math.ceil((fl.until - Date.now()) / 1000) + ' secondes.');
     if (!idf || !pw) return err('Renseignez votre ' + (kind === 'etudiant' ? 'matricule' : kind === 'admin' ? 'code identifiant' : 'adresse e-mail') + ' et votre mot de passe.');
-    if ((await A.lookupUser(kind, idf)) === false) return err('Vérification en ligne impossible : contrôlez la connexion Internet, puis réessayez.');
+    if ((await A.lookupUser(kind, idf)) === false) return err(A.lookupError === 'denied' ? 'La base en ligne refuse la lecture des comptes (règles de sécurité). L’administrateur du projet Firebase doit publier les règles fournies et activer la connexion anonyme.' : 'Vérification en ligne impossible : contrôlez la connexion Internet, puis réessayez.');
     let u = A.findUser(kind, idf);
     // compte principal absent ou masqué par un ancien compte du même code : il est rétabli avant la vérification
     if (kind === 'admin' && idf.toUpperCase() === A.PRINCIPAL_CODE && (!u || u.id !== 'u-principal')) { await A.ensurePrincipalCloud(); u = A.findUser(kind, idf); }
     // le calcul de l'empreinte prend un instant : le bouton l'indique
     const btn = f.querySelector('button[type=submit], button:not([type])'), lbl = btn ? btn.innerHTML : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Vérification…'; await new Promise((r) => setTimeout(r, 40)); }
+    if (kind === 'admin' && u && A.lockLegacyAdmins(A.DB)) A.save();
     let ok = !!u && A.checkPw(u, pw);
     // compte principal : le mot de passe d'origine (empreinte intégrée au code) reste valable tant que l'administrateur
     // principal ne l'a pas lui-même changé dans son profil ; une empreinte différente (ancienne version, réinitialisation…) est remplacée

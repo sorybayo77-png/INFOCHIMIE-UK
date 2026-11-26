@@ -127,7 +127,17 @@
       return () => offs.forEach((f) => { try { f(); } catch (e) {} });
     },
     write(list) { const u = {}; list.forEach((o) => { u[o.c + '/' + o.id] = o.t === 'set' ? o.data : null; }); return F.update(F.ref(db), u); },
-    async query(c, field, value) { const s = await F.get(F.query(F.ref(db, c), F.orderByChild(field), F.equalTo(value))); const out = []; s.forEach((ch) => { out.push({ id: ch.key, data: ch.val() }); }); return out; },
+    async query(c, field, value) {
+      const pick = (s) => { const out = []; s.forEach((ch) => { const v = ch.val(); if (v && v[field] === value) out.push({ id: ch.key, data: v }); }); return out; };
+      try { return pick(await F.get(F.query(F.ref(db, c), F.orderByChild(field), F.equalTo(value)))); }
+      catch (e) {
+        // règles publiées sans « .indexOn » (par exemple les règles « mode test ») : le serveur refuse la requête triée ;
+        // on lit alors la collection entière et on filtre ici (les règles fournies dans database.rules.json évitent ce détour)
+        if (isDenied(e)) throw e;
+        console.warn('Requête sans index, lecture complète de « ' + c + ' »', e);
+        return pick(await F.get(F.ref(db, c)));
+      }
+    },
     async wipe(c) { await F.set(F.ref(db, c), null); }
   };
 
@@ -451,10 +461,17 @@
   async function lookupUser(kind, idf) {
     const low = String(idf || '').trim().toLowerCase(); if (!low || !db) return false;
     try {
-      const list = await withTimeout(BK.query('users', '_idn', low), 15000);
+      const list = await withTimeout(BK.query('users', '_idn', low), 20000);
       list.forEach((d) => applyRec('users', d.id, d.data, 'lookup'));
+      A.lookupError = '';
       return true;
-    } catch (e) { console.warn(e); A.toast('Vérification en ligne impossible : contrôlez la connexion internet.'); return false; }
+    } catch (e) {
+      console.warn('Recherche du compte impossible', e);
+      A.lookupError = isDenied(e) ? 'denied' : 'network';
+      if (A.lookupError === 'denied') A.toast('La base en ligne refuse la lecture des comptes : vérifiez les règles de la Realtime Database et la connexion anonyme (voir LISEZMOI).');
+      else A.toast('Vérification en ligne impossible : contrôlez la connexion internet.');
+      return false;
+    }
   }
   async function ensureFile(f) {
     if (!f || !f.blob || f.text != null || f.data != null) return f;
