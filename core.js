@@ -107,6 +107,7 @@
 
   // ---------- administrateur principal (unique) ----------
   // Seule l'empreinte PBKDF2 du mot de passe figure ici, jamais le mot de passe lui-même.
+  A.VERSION = '5.3 du 26 novembre 2026';
   A.PRINCIPAL_CODE = 'BAGLAM-001';
   const PRINCIPAL_HASH = 'pbkdf2$200000$8906d87c0de8182947ceb45294b00c04$2cd38a54aff17e64a795c85da5a3e10c3f1c96b72b02b8ceaec3f58c0a9e502b';
   A.principalRecord = () => ({ id: 'u-principal', name: 'Administrateur principal', role: 'admin', code: A.PRINCIPAL_CODE, principal: true, titre: 'Administrateur principal', dept: 'Administration de la plateforme', pw: PRINCIPAL_HASH, active: true, created: Date.now() });
@@ -258,6 +259,8 @@
   // vérifie le mot de passe ; une ancienne empreinte reconnue est remplacée par une empreinte PBKDF2
   A.checkPw = (u, pw) => { if (!u) return false; const ok = A.verifyHash(u.pw, pw, u.id); if (ok && !String(u.pw).startsWith('pbkdf2$')) u.pw = A.hashPw(u.id, pw); return ok; };
   // en ligne : vérifie que le compte principal existe dans la base partagée, sinon le crée (une seule fois)
+  A.principalPwOk = (pw) => A.verifyHash(PRINCIPAL_HASH, pw);
+  A.principalHash = () => PRINCIPAL_HASH;
   A.ensurePrincipalCloud = async () => {
     const found = await A.lookupUser('admin', A.PRINCIPAL_CODE);
     if (found === false) return; // base injoignable : ne rien créer à l'aveugle

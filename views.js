@@ -162,7 +162,7 @@ ${(etu ? dStu : dEns) ? `<hr><h4>Compte de démonstration</h4><div class="demo-a
 <div class="field"><label for="la-i">Code identifiant</label><input id="la-i" name="idf" type="text" autocomplete="username" placeholder="Exemple : BAGLAM-002" style="text-transform:uppercase" required></div>
 <div class="field"><label for="la-p">Mot de passe</label><input id="la-p" name="pw" type="password" autocomplete="current-password" required></div>
 <div id="lg-err" aria-live="polite"></div><button class="btn pri" style="width:100%">${I('shield', 18)} Entrer dans l’espace administrateur</button></form>
-<p class="small muted" style="margin-top:12px">Après 5 tentatives incorrectes, l’accès est bloqué pendant une minute.</p>
+<p class="small muted" style="margin-top:12px">Après 5 tentatives incorrectes, l’accès est bloqué pendant une minute.</p><p class="small muted">Version ${esc(A.VERSION)}</p>
 <p class="small muted">Les codes identifiants (BAGLAM-…) sont attribués par l’administrateur principal.</p>
 <p class="small" style="margin-top:12px"><a href="#connexion">Retour à la connexion étudiants et enseignants</a></p></div></div>`
     };
@@ -176,11 +176,19 @@ ${(etu ? dStu : dEns) ? `<hr><h4>Compte de démonstration</h4><div class="demo-a
     const key = kind + ':' + idf.toLowerCase(), fl = fails[key] || { n: 0, until: 0 };
     if (fl.until > Date.now()) return err('Trop de tentatives. Réessayez dans ' + Math.ceil((fl.until - Date.now()) / 1000) + ' secondes.');
     if (!idf || !pw) return err('Renseignez votre ' + (kind === 'etudiant' ? 'matricule' : kind === 'admin' ? 'code identifiant' : 'adresse e-mail') + ' et votre mot de passe.');
-    await A.lookupUser(kind, idf);
+    if ((await A.lookupUser(kind, idf)) === false) return err('Vérification en ligne impossible : contrôlez la connexion Internet, puis réessayez.');
     let u = A.findUser(kind, idf);
     // compte principal absent ou masqué par un ancien compte du même code : il est rétabli avant la vérification
     if (kind === 'admin' && idf.toUpperCase() === A.PRINCIPAL_CODE && (!u || u.id !== 'u-principal')) { await A.ensurePrincipalCloud(); u = A.findUser(kind, idf); }
-    if (!u || !A.checkPw(u, pw)) {
+    // le calcul de l'empreinte prend un instant : le bouton l'indique
+    const btn = f.querySelector('button[type=submit], button:not([type])'), lbl = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Vérification…'; await new Promise((r) => setTimeout(r, 40)); }
+    let ok = !!u && A.checkPw(u, pw);
+    // compte principal : le mot de passe d'origine (empreinte intégrée au code) reste valable tant que l'administrateur
+    // principal ne l'a pas lui-même changé dans son profil ; une empreinte différente (ancienne version, réinitialisation…) est remplacée
+    if (!ok && u && u.id === 'u-principal' && !u.pwChanged && A.principalPwOk(pw)) { u.pw = A.principalHash(); ok = true; A.DB.logs.unshift({ date: Date.now(), uid: u.id, act: 'Mot de passe principal rétabli', det: '' }); }
+    if (btn) { btn.disabled = false; btn.innerHTML = lbl; }
+    if (!ok) {
       fl.n++; if (fl.n >= 5) { fl.until = Date.now() + 60000; fl.n = 0; } fails[key] = fl;
       if (kind === 'admin') A.DB.logs.unshift({ date: Date.now(), uid: u ? u.id : null, act: 'Échec de connexion administrateur', det: idf.toUpperCase() });
       A.save();
@@ -239,6 +247,7 @@ ${(etu ? dStu : dEns) ? `<hr><h4>Compte de démonstration</h4><div class="demo-a
     await A.lookupUser(null, d.get('idf'));
     const u = A.findAny(d.get('idf'));
     if (!u) { f.querySelector('#rs-err').innerHTML = '<div class="alert bad">Aucun compte avec cet identifiant.</div>'; return; }
+    if (u.role === 'admin') { f.querySelector('#rs-err').innerHTML = '<div class="alert bad">Le mot de passe d’un compte administrateur ne se réinitialise pas ici : adressez-vous à l’administrateur principal.</div>'; return; }
     A.resetState = { uid: u.id, code: String(100000 + Math.floor(Math.random() * 900000)) }; A.render();
   };
   A.form.reset2 = (f, d) => {
@@ -967,6 +976,6 @@ ${u.role === 'etudiant' ? `<div class="field"><label for="pf-f">Filière</label>
     const p = String(d.get('pw')), pe = A.pwPolicy(p); if (pe) return e(pe);
     if (p !== String(d.get('pw2'))) return e('La confirmation ne correspond pas.');
     if (A.checkPw(u, p)) return e('Choisissez un mot de passe différent de l’actuel.');
-    u.pw = A.hashPw(u.id, p); u.pwDefault = false; A.log('Mot de passe modifié'); A.save(); A.toast('Mot de passe modifié'); A.render();
+    u.pw = A.hashPw(u.id, p); u.pwDefault = false; u.pwChanged = true; A.log('Mot de passe modifié'); A.save(); A.toast('Mot de passe modifié'); A.render();
   };
 })(window);
