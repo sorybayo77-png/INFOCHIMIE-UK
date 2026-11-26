@@ -41,12 +41,13 @@
       if (ch === '[') {
         const j = s.indexOf(']', i); if (j < 0) fail('Crochet non fermé dans le SMILES.');
         const inner = s.slice(i + 1, j); i = j + 1;
-        const m = inner.match(/^(\d*)([A-Z][a-z]?|[bcnops])(@*)(?:H(\d?))?([+-]+\d*)?(?::\d+)?$/);
+        const m = inner.match(/^(\d*)([A-Z][a-z]?|se|as|te|[bcnops])(@+(?:TH|AL|SP|TB|OH)?\d*)?(?:H(\d?))?([+-]+\d*)?(?::\d+)?$/);
         if (!m) fail('Atome entre crochets non reconnu : [' + inner + '].');
-        if (m[5] && !/^[+-]0$/.test(m[5])) fail('Les ions et charges (' + m[5] + ') ne sont pas pris en charge par l’éditeur.');
-        const ar = /^[a-z]/.test(m[2]), el = ar ? m[2].toUpperCase() : m[2];
-        if (!C.EL[el]) fail('Élément non pris en charge : ' + el + '.');
-        addAtom({ el, ar, hx: m[4] !== undefined ? (m[4] === '' ? 1 : +m[4]) : 0, br: true });
+        const ar = /^[a-z]/.test(m[2]), el = ar ? m[2][0].toUpperCase() + m[2].slice(1) : (m[2] === 'D' || m[2] === 'T' ? 'H' : m[2]);
+        if (!C.EL[el]) fail('Élément inconnu : ' + el + '.');
+        let chg = 0; if (m[5]) { const sg = m[5][0] === '+' ? 1 : -1; chg = /\d/.test(m[5]) ? sg * parseInt(m[5].replace(/[+-]/g, ''), 10) : sg * m[5].length; }
+        const at = { el, ar, hx: m[4] !== undefined ? (m[4] === '' ? 1 : +m[4]) : 0, br: true }; if (chg) at.chg = chg;
+        addAtom(at);
         continue;
       }
       const two = s.slice(i, i + 2);
@@ -59,16 +60,21 @@
     if (stack.length) fail('Parenthèse non fermée dans le SMILES.');
     if (Object.keys(rings).length) fail('Cycle non fermé dans le SMILES (chiffre ' + Object.keys(rings)[0] + ').');
     kekulize(atoms, bonds);
-    return { atoms: atoms.map((a) => ({ el: a.el })), bonds: bonds.map((b) => ({ a: b.a, b: b.b, o: b.o })) };
+    const g = { atoms: atoms.map((a) => (a.chg ? { el: a.el, chg: a.chg } : { el: a.el })), bonds: bonds.map((b) => ({ a: b.a, b: b.b, o: b.o })) };
+    // atomes entre crochets : le nombre d'hydrogènes écrit est conservé s'il diffère de la valence usuelle ([CH2], [Fe], [SiH4]…)
+    const adj = C.adjacency(g);
+    atoms.forEach((a, i) => { if (!a.br || a.el === 'H') return; const t = g.atoms[i]; if (C.implicitH(g, adj, i) !== a.hx) t.hx = [a.hx, Math.round(C.bondSum(adj, i)), t.el, t.chg | 0]; });
+    return g;
   }
   // liaisons aromatiques → alternance simple/double (structure de Kekulé)
   function kekulize(atoms, bonds) {
     const arB = bonds.filter((b) => b.o === 1.5); if (!arB.length) return;
-    const VAL = { C: 4, N: 3, O: 2, S: 2, P: 3, B: 3 };
+    const VAL = { C: 4, N: 3, O: 2, S: 2, P: 3, B: 3, Se: 2, Te: 2, As: 3 };
     const need = atoms.map((a, i) => {
       if (!a.ar) return false;
       let used = a.hx || 0; bonds.forEach((b) => { if (b.a === i || b.b === i) used += b.o === 1.5 ? 1 : b.o; });
-      return (VAL[a.el] || 4) - used >= 1 && !(a.br && a.el === 'N' && a.hx);
+      const q = a.chg | 0, base = VAL[a.el] || 4, val = q && ['N', 'O', 'S', 'P'].includes(a.el) ? base + q : q && a.el === 'C' ? base - Math.abs(q) : base;
+      return val - used >= 1 && !(a.br && a.el === 'N' && a.hx && !q);
     });
     const nb = atoms.map(() => []); arB.forEach((b) => { if (need[b.a] && need[b.b]) { nb[b.a].push(b); nb[b.b].push(b); } });
     const mate = new Map(), todo = atoms.map((a, i) => i).filter((i) => need[i]);
@@ -234,7 +240,7 @@
     const w = Math.max(...pos.map((p) => p[0])) - Math.min(...pos.map((p) => p[0])), h = Math.max(...pos.map((p) => p[1])) - Math.min(...pos.map((p) => p[1]));
     let fin = pos.map((p) => [p[0] - cx, p[1] - cy]);
     if (h > w * 1.25 && comps.length === 1) { const t = -0.5 * Math.atan2(2 * sxy, sxx - syy); fin = fin.map((p) => rot(p, t)); }
-    return { name: g.name || '', atoms: g.atoms.map((a, i) => ({ el: a.el, x: +(fin[i][0] * L).toFixed(2), y: +(fin[i][1] * L).toFixed(2) })), bonds: g.bonds.map((b) => ({ a: b.a, b: b.b, o: b.o })) };
+    return { name: g.name || '', atoms: g.atoms.map((a, i) => ({ el: a.el, x: +(fin[i][0] * L).toFixed(2), y: +(fin[i][1] * L).toFixed(2), ...C.extra(a) })), bonds: g.bonds.map((b) => ({ a: b.a, b: b.b, o: b.o })) };
   }
 
   // =====================================================================

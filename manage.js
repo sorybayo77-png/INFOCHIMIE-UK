@@ -197,26 +197,39 @@ ${st.map((s) => { const x = studentStats(s); return `<tr><td><code>${esc(s.matri
   };
 
   // =========================================================== UTILISATEURS
-  const nextAdmCode = () => { let n = 1; const codes = new Set(A.admins().map((a) => String(a.code || '').toUpperCase())); while (codes.has('ADM-' + String(n).padStart(3, '0'))) n++; return 'ADM-' + String(n).padStart(3, '0'); };
+  // codes générés automatiquement à chaque création d'administrateur : BAGLAM-002, BAGLAM-003…
+  // numéro jamais réutilisé, même après la suppression d'un compte (compteur conservé dans la configuration)
+  const nextAdmCode = () => { let n = Math.max(1, A.DB.admSeq | 0); A.DB.users.forEach((a) => { const m = String(a.code || '').toUpperCase().match(/^BAGLAM-(\d+)$/); if (m) n = Math.max(n, +m[1]); }); return 'BAGLAM-' + String(n + 1).padStart(3, '0'); };
+  A.nextAdmCode = nextAdmCode;
   const activeAdmins = () => A.admins().filter((a) => a.active !== false);
+  const amPrincipal = () => A.isPrincipal(A.me());
+  // un administrateur secondaire ne gère que les étudiants et les enseignants ; le compte principal ne se modifie que par lui-même
+  const canManage = (u) => { const me = A.me(); if (!me || !u) return false; if (A.isPrincipal(u)) return me.id === u.id; if (u.role === 'admin') return amPrincipal(); return true; };
+  const roleLabel = (u) => (A.isPrincipal(u) ? '<span class="badge orange">Administrateur principal</span>' : A.roleName[u.role]);
   A.route(/^utilisateurs$/, () => {
-    const q = (A.userQ || '').toLowerCase(), r = A.userR || '', me = A.me();
-    const U = A.DB.users.filter((u) => (!r || u.role === r) && (!q || [u.name, u.email, u.matricule, u.code, u.filiere, u.dept].join(' ').toLowerCase().includes(q)));
+    const q = (A.userQ || '').toLowerCase(), r = A.userR || '', me = A.me(), pr = amPrincipal();
+    const U = A.DB.users.filter((u) => (!r || u.role === r) && (!q || [u.name, u.email, u.matricule, u.code, u.filiere, u.dept].join(' ').toLowerCase().includes(q)))
+      .sort((a, b) => (A.isPrincipal(b) - A.isPrincipal(a)) || ((a.role === 'admin') === (b.role === 'admin') ? 0 : a.role === 'admin' ? -1 : 1));
+    const acts = (u) => {
+      if (!canManage(u)) return `<span class="small muted">${A.isPrincipal(u) ? 'Compte principal' : 'Réservé à l’administrateur principal'}</span>`;
+      return `<button class="btn sm" data-act="editUser" data-id="${u.id}">Modifier</button> ${u.id === me.id ? '' : `<button class="btn sm" data-act="resetPw" data-id="${u.id}">Mot de passe</button> `}${u.id === me.id || A.isPrincipal(u) ? '' : `<button class="iconbtn" data-act="delUser" data-id="${u.id}" aria-label="Supprimer ${esc(u.name)}">${I('trash', 18)}</button>`}`;
+    };
+    const lock = (u) => u.id === me.id || A.isPrincipal(u) || !canManage(u);
     return {
-      title: 'Utilisateurs', html: head('Gestion des utilisateurs', A.DB.users.length + ' comptes. Les étudiants se connectent avec leur matricule, les enseignants avec leur e-mail, les administrateurs avec leur code identifiant.') + `
+      title: 'Utilisateurs', html: head('Gestion des utilisateurs', A.DB.users.length + ' comptes. Étudiants : matricule · enseignants : e-mail · administrateurs : code identifiant attribué automatiquement.' + (pr ? '' : ' Seul l’administrateur principal crée et gère les comptes administrateurs.')) + `
 <div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,340px);align-items:start" id="us-grid"><div class="card">
 <div class="row" style="margin-bottom:10px"><input type="search" id="us-q" placeholder="Rechercher un nom, un matricule, un code…" value="${esc(A.userQ || '')}" style="flex:1;min-width:200px" aria-label="Rechercher"><select id="us-r" aria-label="Filtrer par rôle" style="width:auto"><option value="">Tous les rôles</option>${Object.entries(A.roleName).map(([k, v]) => `<option value="${k}" ${r === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
 <div class="scroll"><table class="tbl stack"><thead><tr><th>Nom</th><th>Code d’accès</th><th>Rôle</th><th>État</th><th>Dernière connexion</th><th></th></tr></thead><tbody>
-${U.map((u) => `<tr><td><b>${esc(u.name)}</b><br><span class="small muted">${esc(u.titre || u.filiere || u.dept || '')}</span></td><td><code>${esc(A.ident(u))}</code><br><span class="small muted">${A.identLabel[u.role]}</span></td><td>${A.roleName[u.role]}</td><td><label class="check"><input type="checkbox" data-chg="setActive" data-id="${u.id}" ${u.active !== false ? 'checked' : ''} ${u.id === me.id ? 'disabled' : ''}> ${u.active !== false ? 'Actif' : 'Désactivé'}</label></td><td>${u.last ? A.fmtDate(u.last, true) : '—'}</td><td class="num" style="white-space:nowrap"><button class="btn sm" data-act="editUser" data-id="${u.id}">Modifier</button> <button class="btn sm" data-act="resetPw" data-id="${u.id}">Mot de passe</button> ${u.id === me.id ? '' : `<button class="iconbtn" data-act="delUser" data-id="${u.id}" aria-label="Supprimer ${esc(u.name)}">${I('trash', 18)}</button>`}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">Aucun résultat.</td></tr>'}
+${U.map((u) => `<tr><td><b>${esc(u.name)}</b><br><span class="small muted">${esc(u.role === 'admin' ? A.adminTitle(u) : (u.filiere || u.dept || ''))}</span></td><td><code>${esc(A.ident(u))}</code><br><span class="small muted">${A.identLabel[u.role]}</span></td><td>${roleLabel(u)}</td><td><label class="check"><input type="checkbox" data-chg="setActive" data-id="${u.id}" ${u.active !== false ? 'checked' : ''} ${lock(u) ? 'disabled' : ''}> ${u.active !== false ? 'Actif' : 'Désactivé'}</label></td><td>${u.last ? A.fmtDate(u.last, true) : '—'}</td><td class="num" style="white-space:nowrap">${acts(u)}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">Aucun résultat.</td></tr>'}
 </tbody></table></div></div>
 <form class="card" data-form="addUser"><h3>Ajouter un utilisateur</h3>
-<div class="field"><label for="au-r">Rôle</label><select id="au-r" name="role" data-chg="auRole"><option value="etudiant">Étudiant</option><option value="enseignant">Enseignant</option><option value="admin">Administrateur</option></select></div>
+<div class="field"><label for="au-r">Rôle</label><select id="au-r" name="role" data-chg="auRole"><option value="etudiant">Étudiant</option><option value="enseignant">Enseignant</option>${pr ? '<option value="admin">Administrateur</option>' : ''}</select></div>
 <div class="field"><label for="au-n">Nom et prénom</label><input id="au-n" name="name" type="text" required></div>
 <div class="field au-f" data-for="etudiant"><label for="au-m">Matricule (code d’accès)</label><input id="au-m" name="matricule" type="text" inputmode="numeric" placeholder="Exemple : 20200104962"></div>
 <div class="field au-f" data-for="etudiant"><label for="au-fi">Filière</label><select id="au-fi" name="filiere">${A.FILIERES.map((f) => `<option>${esc(f)}</option>`).join('')}</select></div>
 <div class="field au-f" data-for="enseignant" hidden><label for="au-e">E-mail (code d’accès)</label><input id="au-e" name="email" type="email"></div>
-<div class="field au-f" data-for="admin" hidden><label for="au-c">Code identifiant administrateur</label><input id="au-c" name="code" type="text" value="${nextAdmCode()}" style="text-transform:uppercase"></div>
-<div class="field au-f" data-for="admin" hidden><label for="au-t">Fonction</label><input id="au-t" name="titre" type="text" placeholder="Administrateur"></div>
+${pr ? `<div class="field au-f" data-for="admin" hidden><label>Code identifiant</label><div class="note" style="font-weight:600">${nextAdmCode()} <span class="small muted" style="font-weight:400">— attribué automatiquement</span></div></div>
+<div class="field au-f" data-for="admin" hidden><label for="au-t">Fonction</label><input id="au-t" name="titre" type="text" placeholder="Administrateur"></div>` : ''}
 <div class="field au-f" data-for="enseignant admin" hidden><label for="au-d">Département ou service</label><input id="au-d" name="dept" type="text"></div>
 <div id="au-err" aria-live="polite"></div><button class="btn pri">${I('plus', 18)} Créer le compte</button><p class="small muted" style="margin-top:8px">Un mot de passe provisoire conforme aux règles de sécurité est généré et affiché une seule fois. L’utilisateur devra le changer.</p></form></div>
 <style>@media(max-width:1000px){#us-grid{grid-template-columns:minmax(0,1fr)!important}}</style>`,
@@ -224,57 +237,66 @@ ${U.map((u) => `<tr><td><b>${esc(u.name)}</b><br><span class="small muted">${esc
     };
   }, { perm: 'users.gerer' });
   A.chg.auRole = (el) => { A.$$('.au-f', el.form).forEach((f) => { f.hidden = !f.dataset.for.split(' ').includes(el.value); }); };
-  // contrôle des identifiants selon le rôle (unicité, format)
+  // contrôle des identifiants selon le rôle (unicité, format) ; le code administrateur n'est jamais saisi
   const checkIdent = (role, d, selfId) => {
     if (role === 'etudiant') { const m = String(d.get('matricule') || '').trim(); if (!A.MATRICULE_RE.test(m)) return 'Matricule invalide : 6 à 20 chiffres ou lettres, sans espace.'; const o = A.findUser('etudiant', m); if (o && o.id !== selfId) return 'Ce matricule est déjà utilisé par ' + esc(o.name) + '.'; return ''; }
     if (role === 'enseignant') { const e = String(d.get('email') || '').trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return 'E-mail invalide.'; const o = A.findUser('enseignant', e); if (o && o.id !== selfId) return 'Cet e-mail est déjà utilisé.'; return ''; }
-    const c = String(d.get('code') || '').trim().toUpperCase(); if (!/^[A-Z0-9-]{4,20}$/.test(c)) return 'Code identifiant invalide (lettres, chiffres et tirets, 4 à 20 caractères).'; const o = A.findUser('admin', c); if (o && o.id !== selfId) return 'Ce code identifiant est déjà attribué.'; return '';
+    if (role === 'admin' && !amPrincipal()) return 'Seul l’administrateur principal peut créer ou gérer un compte administrateur.';
+    return '';
   };
   const applyIdent = (u, role, d) => {
     if (role === 'etudiant') { u.matricule = String(d.get('matricule')).trim(); u.filiere = String(d.get('filiere') || u.filiere || ''); }
     if (role === 'enseignant') { u.email = String(d.get('email')).trim().toLowerCase(); u.dept = String(d.get('dept') || '').trim(); }
-    if (role === 'admin') { u.code = String(d.get('code')).trim().toUpperCase(); u.titre = String(d.get('titre') || '').trim() || 'Administrateur'; u.dept = String(d.get('dept') || '').trim(); }
+    if (role === 'admin') { if (!u.code || !/^BAGLAM-\d+$|^ADM-\d+$/i.test(u.code) || (A.findUser('admin', u.code) && A.findUser('admin', u.code).id !== u.id)) { u.code = nextAdmCode(); A.DB.admSeq = +u.code.slice(7); } if (d.has('titre') && !A.isPrincipal(u)) u.titre = String(d.get('titre') || '').trim() || 'Administrateur'; if (d.has('dept')) u.dept = String(d.get('dept') || '').trim(); }
   };
-  A.form.addUser = (f, d) => {
+  A.form.addUser = async (f, d) => {
     const name = String(d.get('name')).trim(), role = String(d.get('role')), err = (m) => { f.querySelector('#au-err').innerHTML = `<div class="alert bad">${m}</div>`; };
-    if (name.length < 3) return err('Nom trop court.'); const ie = checkIdent(role, d); if (ie) return err(ie);
-    const id = A.uid('u-'), p = A.tmpPw(), u = { id, name, role, pw: A.hashPw(id, p), pwDefault: true, active: true, created: Date.now() };
+    if (name.length < 3) return err('Nom trop court.');
+    if (role === 'etudiant' && A.MATRICULE_RE.test(String(d.get('matricule') || '').trim())) await A.lookupUser('etudiant', String(d.get('matricule')).trim());
+    if (role === 'enseignant') await A.lookupUser('enseignant', String(d.get('email') || '').trim());
+    const ie = checkIdent(role, d); if (ie) return err(ie);
+    const id = A.uid('u-'), p = A.tmpPw(), u = { id, name, role, pw: A.hashPw(id, p), pwDefault: true, active: true, created: Date.now(), createdBy: A.me().id };
     applyIdent(u, role, d); A.DB.users.push(u); A.notify(u.id, 'Bienvenue sur la plateforme. Changez votre mot de passe provisoire dans votre profil.', 'profil');
     A.log('Compte créé', name + ' (' + A.roleName[role] + ', ' + A.ident(u) + ')'); A.save(); A.render();
     A.modal(`<h3>Compte créé</h3><p>${esc(name)} — ${esc(A.roleName[role])}</p><dl class="kv"><dt>${A.identLabel[role]} (code d’accès)</dt><dd>${esc(A.ident(u))}</dd><dt>Mot de passe provisoire</dt><dd>${esc(p)}</dd><dt>Page de connexion</dt><dd>${role === 'admin' ? 'Espace administrateur' : 'Connexion'}</dd></dl><p class="small muted">Ce mot de passe ne sera plus affiché. L’utilisateur devra le changer dans son profil.</p><div class="row" style="justify-content:flex-end"><button class="btn" data-act="copyCreds" data-t="${esc(A.identLabel[role] + ' : ' + A.ident(u) + ' — Mot de passe provisoire : ' + p)}">${I('copy', 18)} Copier</button><button class="btn pri" data-act="closeModal">J’ai noté ces informations</button></div>`);
   };
   A.act.copyCreds = (el) => A.copy(el.dataset.t, 'Identifiants');
   A.act.editUser = (el) => {
-    const u = A.user(el.dataset.id), me = A.me();
+    const u = A.user(el.dataset.id), me = A.me(), pr = amPrincipal(); if (!canManage(u)) { A.toast('Réservé à l’administrateur principal.'); return; }
+    const roleLocked = u.id === me.id || A.isPrincipal(u);
     A.modal(`<div class="row between"><h3 style="margin:0">Modifier le compte</h3><button class="btn sm" data-act="closeModal">Fermer</button></div>
 <form data-form="editUser" data-id="${u.id}" style="margin-top:12px">
 <div class="field"><label for="eu-n">Nom et prénom</label><input id="eu-n" name="name" type="text" value="${esc(u.name)}" required></div>
-<div class="field"><label for="eu-r">Rôle</label><select id="eu-r" name="role" data-chg="auRole" ${u.id === me.id ? 'disabled' : ''}>${Object.entries(A.roleName).map(([k, v]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${v}</option>`).join('')}</select>${u.id === me.id ? '<small>Vous ne pouvez pas modifier votre propre rôle.</small>' : ''}</div>
+<div class="field"><label for="eu-r">Rôle</label><select id="eu-r" name="role" data-chg="auRole" ${roleLocked ? 'disabled' : ''}>${Object.entries(A.roleName).filter(([k]) => k !== 'admin' || pr || u.role === 'admin').map(([k, v]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${v}</option>`).join('')}</select>${roleLocked ? '<small>Ce rôle ne peut pas être modifié ici.</small>' : ''}</div>
 <div class="field au-f" data-for="etudiant" ${u.role === 'etudiant' ? '' : 'hidden'}><label for="eu-m">Matricule (code d’accès)</label><input id="eu-m" name="matricule" type="text" value="${esc(u.matricule || '')}"></div>
 <div class="field au-f" data-for="etudiant" ${u.role === 'etudiant' ? '' : 'hidden'}><label for="eu-f">Filière</label><select id="eu-f" name="filiere">${A.FILIERES.map((f) => `<option ${f === u.filiere ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select></div>
 <div class="field au-f" data-for="enseignant" ${u.role === 'enseignant' ? '' : 'hidden'}><label for="eu-e">E-mail (code d’accès)</label><input id="eu-e" name="email" type="email" value="${esc(u.email || '')}"></div>
-<div class="field au-f" data-for="admin" ${u.role === 'admin' ? '' : 'hidden'}><label for="eu-c">Code identifiant</label><input id="eu-c" name="code" type="text" value="${esc(u.code || nextAdmCode())}" style="text-transform:uppercase"></div>
-<div class="field au-f" data-for="admin" ${u.role === 'admin' ? '' : 'hidden'}><label for="eu-t">Fonction</label><input id="eu-t" name="titre" type="text" value="${esc(u.titre || '')}"></div>
+<div class="field au-f" data-for="admin" ${u.role === 'admin' ? '' : 'hidden'}><label>Code identifiant</label><div class="note" style="font-weight:600">${esc(u.code || nextAdmCode())} <span class="small muted" style="font-weight:400">— attribué automatiquement, non modifiable</span></div></div>
+${A.isPrincipal(u) ? '' : `<div class="field au-f" data-for="admin" ${u.role === 'admin' ? '' : 'hidden'}><label for="eu-t">Fonction</label><input id="eu-t" name="titre" type="text" value="${esc(A.adminTitle(u))}"></div>`}
 <div class="field au-f" data-for="enseignant admin" ${u.role !== 'etudiant' ? '' : 'hidden'}><label for="eu-d">Département ou service</label><input id="eu-d" name="dept" type="text" value="${esc(u.dept || '')}"></div>
 <div id="eu-err" aria-live="polite"></div><div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-act="closeModal">Annuler</button><button class="btn pri">Enregistrer</button></div></form>`);
   };
   A.form.editUser = (f, d) => {
-    const u = A.user(f.dataset.id), me = A.me(), role = u.id === me.id ? u.role : String(d.get('role')), err = (m) => { f.querySelector('#eu-err').innerHTML = `<div class="alert bad">${m}</div>`; };
+    const u = A.user(f.dataset.id), me = A.me(), err = (m) => { f.querySelector('#eu-err').innerHTML = `<div class="alert bad">${m}</div>`; };
+    if (!canManage(u)) return err('Réservé à l’administrateur principal.');
+    const role = u.id === me.id || A.isPrincipal(u) ? u.role : String(d.get('role'));
+    if ((role === 'admin') !== (u.role === 'admin') && !amPrincipal()) return err('Seul l’administrateur principal peut attribuer ou retirer le rôle administrateur.');
     const name = String(d.get('name')).trim(); if (name.length < 3) return err('Nom trop court.');
-    if (u.role === 'admin' && role !== 'admin' && activeAdmins().filter((a) => a.id !== u.id).length === 0) return err('Impossible : la plateforme doit garder au moins un administrateur actif.');
-    const ie = checkIdent(role, d, u.id); if (ie) return err(ie);
+    const ie = checkIdent(role, d, u.id); if (ie && !(role === 'admin' && amPrincipal())) return err(ie);
     const old = A.roleName[u.role]; u.name = name; u.role = role; applyIdent(u, role, d);
     A.log('Compte modifié', name + (old !== A.roleName[role] ? ' : ' + old + ' → ' + A.roleName[role] : '') + ' (' + A.ident(u) + ')'); A.save(); A.closeModal(); A.toast('Compte mis à jour'); A.render();
   };
   A.chg.setActive = (el) => {
     const u = A.user(el.dataset.id);
+    if (!canManage(u) || A.isPrincipal(u)) { el.checked = u.active !== false; A.toast(A.isPrincipal(u) ? 'Le compte principal reste toujours actif.' : 'Réservé à l’administrateur principal.'); return; }
     if (!el.checked && u.role === 'admin' && activeAdmins().filter((a) => a.id !== u.id).length === 0) { el.checked = true; A.toast('Il faut garder au moins un administrateur actif.'); return; }
     u.active = el.checked; A.log(el.checked ? 'Compte réactivé' : 'Compte désactivé', u.name + ' (' + A.ident(u) + ')'); A.save(); A.render();
   };
-  A.act.resetPw = (el) => { const u = A.user(el.dataset.id); A.confirm('Générer un nouveau mot de passe provisoire pour ' + esc(u.name) + ' ?', () => { const p = A.tmpPw(); u.pw = A.hashPw(u.id, p); u.pwDefault = true; A.log('Mot de passe réinitialisé', u.name); A.save(); A.modal(`<h3>Mot de passe provisoire</h3><p>Communiquez ces informations à ${esc(u.name)} : le mot de passe ne sera plus affiché.</p><dl class="kv"><dt>${A.identLabel[u.role]}</dt><dd>${esc(A.ident(u))}</dd><dt>Mot de passe provisoire</dt><dd>${esc(p)}</dd></dl><div class="row" style="justify-content:flex-end"><button class="btn" data-act="copyCreds" data-t="${esc(A.identLabel[u.role] + ' : ' + A.ident(u) + ' — Mot de passe provisoire : ' + p)}">${I('copy', 18)} Copier</button><button class="btn pri" data-act="closeModal">J’ai noté le mot de passe</button></div>`); }, 'Générer', false); };
+  A.act.resetPw = (el) => { const u = A.user(el.dataset.id); if (!canManage(u) || u.id === A.me().id) { A.toast('Réservé à l’administrateur principal.'); return; } A.confirm('Générer un nouveau mot de passe provisoire pour ' + esc(u.name) + ' ?', () => { const p = A.tmpPw(); u.pw = A.hashPw(u.id, p); u.pwDefault = true; A.log('Mot de passe réinitialisé', u.name); A.save(); A.modal(`<h3>Mot de passe provisoire</h3><p>Communiquez ces informations à ${esc(u.name)} : le mot de passe ne sera plus affiché.</p><dl class="kv"><dt>${A.identLabel[u.role]}</dt><dd>${esc(A.ident(u))}</dd><dt>Mot de passe provisoire</dt><dd>${esc(p)}</dd></dl><div class="row" style="justify-content:flex-end"><button class="btn" data-act="copyCreds" data-t="${esc(A.identLabel[u.role] + ' : ' + A.ident(u) + ' — Mot de passe provisoire : ' + p)}">${I('copy', 18)} Copier</button><button class="btn pri" data-act="closeModal">J’ai noté le mot de passe</button></div>`); }, 'Générer', false); };
   A.act.delUser = (el) => {
     const u = A.user(el.dataset.id);
-    if (u.role === 'admin' && activeAdmins().filter((a) => a.id !== u.id).length === 0) { A.toast('Impossible de supprimer le dernier administrateur actif.'); return; }
+    if (A.isPrincipal(u)) { A.toast('Le compte principal ne peut pas être supprimé.'); return; }
+    if (!canManage(u)) { A.toast('Réservé à l’administrateur principal.'); return; }
     A.confirm('Supprimer définitivement le compte de ' + esc(u.name) + ' (' + esc(A.ident(u)) + ') et toutes ses données (progression, résultats, dépôts, évaluations) ? Cette action est irréversible.', () => { const id = u.id; A.DB.users = A.DB.users.filter((x) => x.id !== id); A.DB.attempts = A.DB.attempts.filter((a) => a.uid !== id); A.DB.subs = A.DB.subs.filter((s) => s.uid !== id); A.DB.notifs = A.DB.notifs.filter((n) => n.uid !== id); A.DB.evals = A.DB.evals.filter((e) => e.uid !== id); delete A.DB.progress[id]; delete A.DB.mols[id]; delete A.DB.draws[id]; A.log('Compte supprimé', u.name + ' (' + A.ident(u) + ')'); A.save(); A.render(); }, 'Supprimer définitivement');
   };
 
@@ -371,9 +393,9 @@ ${L.map(({ s, x, ev }) => `<tr><td><code>${esc(s.matricule || '—')}</code></td
 ${A.PERMS.map(([k, label]) => `<tr><td>${esc(label)}<br><code class="small">${k}</code></td>${Object.keys(A.roleName).map((r) => `<td><input type="checkbox" style="width:20px;height:20px;accent-color:var(--blue)" aria-label="${esc(label)} — ${A.roleName[r]}" data-chg="perm" data-r="${r}" data-k="${k}" ${A.DB.perms[r][k] ? 'checked' : ''} ${r === 'admin' && (k === 'plateforme.admin' || k === 'users.gerer') ? 'disabled' : ''}></td>`).join('')}</tr>`).join('')}
 <tr><td>Contrôler l’évolution de tous les étudiants et l’évaluer<br><span class="small muted">Fenêtre réservée aux administrateurs, non modifiable</span></td><td>—</td><td>—</td><td>${I('check', 20)}</td></tr>
 </tbody></table><button class="btn" data-act="resetPerms">Rétablir les autorisations par défaut</button></div>`
-  }), { perm: 'plateforme.admin' });
-  A.chg.perm = (el) => { A.DB.perms[el.dataset.r][el.dataset.k] = el.checked; A.log('Autorisation modifiée', A.roleName[el.dataset.r] + ' · ' + el.dataset.k + ' = ' + (el.checked ? 'oui' : 'non')); A.save(); A.toast('Autorisation enregistrée'); };
-  A.act.resetPerms = () => A.confirm('Rétablir les autorisations par défaut ?', () => { A.DB.perms = { etudiant: { 'cours.lire': true, 'tp.deposer': true, 'eval.passer': true }, enseignant: { 'cours.lire': true, 'cours.gerer': true, 'questions.gerer': true, 'travaux.corriger': true, 'resultats.voir': true, 'stats.voir': true }, admin: Object.fromEntries(A.PERMS.map(([k]) => [k, true])) }; A.log('Autorisations rétablies'); A.save(); A.render(); }, 'Rétablir', false);
+  }), { principal: true });
+  A.chg.perm = (el) => { if (!A.isPrincipal(A.me())) return; A.DB.perms[el.dataset.r][el.dataset.k] = el.checked; A.log('Autorisation modifiée', A.roleName[el.dataset.r] + ' · ' + el.dataset.k + ' = ' + (el.checked ? 'oui' : 'non')); A.save(); A.toast('Autorisation enregistrée'); };
+  A.act.resetPerms = () => A.isPrincipal(A.me()) && A.confirm('Rétablir les autorisations par défaut ?', () => { A.DB.perms = { etudiant: { 'cours.lire': true, 'tp.deposer': true, 'eval.passer': true }, enseignant: { 'cours.lire': true, 'cours.gerer': true, 'questions.gerer': true, 'travaux.corriger': true, 'resultats.voir': true, 'stats.voir': true }, admin: Object.fromEntries(A.PERMS.map(([k]) => [k, true])) }; A.log('Autorisations rétablies'); A.save(); A.render(); }, 'Rétablir', false);
 
   // =========================================================== JOURNAL
   A.route(/^journal$/, () => {
@@ -398,20 +420,24 @@ ${A.PERMS.map(([k, label]) => `<tr><td>${esc(label)}<br><code class="small">${k}
 <div class="grid g2" style="margin-top:10px"><div class="field"><label for="se-n">Nombre de questions</label><input id="se-n" name="n" type="number" min="5" max="40" value="${S.examN}"></div><div class="field"><label for="se-d">Durée (minutes)</label><input id="se-d" name="d" type="number" min="5" max="180" value="${S.examMin}"></div></div>
 <div class="field"><label for="se-a">Tentatives autorisées par étudiant</label><input id="se-a" name="a" type="number" min="1" max="10" value="${S.examMax}"></div><button class="btn pri">Enregistrer</button></form>
 <div class="card"><h3>Sauvegarde de la base</h3><p class="small">Données actuelles : ${A.DB.users.length} comptes, ${A.DB.attempts.length} évaluations, ${A.DB.subs.length} dépôts (${size} Ko).</p>
-<div class="row"><button class="btn pri" data-act="backup">${I('down', 18)} Exporter (.json)</button><label class="btn" style="cursor:pointer">${I('up', 18)} Restaurer<input type="file" id="restore" accept=".json" class="sr"></label></div>
-<hr><h3>Mise en service</h3>${A.DB.demo ? `<p class="small">La plateforme contient encore des <b>données de démonstration</b> (un enseignant et quatre étudiants fictifs, leurs résultats et dépôts). Avant d’accueillir vos étudiants, supprimez-les : les comptes administrateurs, les cours, les questions et les documents ajoutés sont conservés.</p><button class="btn warn" data-act="goLive">${I('check', 18)} Mettre en service (supprimer les données de démonstration)</button>` : `<p class="small"><span class="badge green">En service</span> Les données de démonstration ont été supprimées${A.DB.liveAt ? ' le ' + A.fmtDate(A.DB.liveAt) : ''}.</p>`}
-<hr><h3>Réinitialisation complète</h3><p class="small muted">Efface toutes les données (comptes, résultats, dépôts, cours ajoutés) et repart d’une plateforme vide : seuls les deux comptes administrateurs sont recréés, avec leur mot de passe initial.</p><button class="btn danger" data-act="resetDemo">Réinitialiser la plateforme</button></div></div>`,
+<div class="row"><button class="btn pri" data-act="backup">${I('down', 18)} Exporter (.json)</button>${A.isPrincipal(A.me()) ? `<label class="btn" style="cursor:pointer">${I('up', 18)} Restaurer<input type="file" id="restore" accept=".json" class="sr"></label>` : ''}</div>
+<hr><h3>Mise en service</h3>${A.DB.demo ? `<p class="small">La plateforme contient encore des <b>données de démonstration</b> (un enseignant et quatre étudiants fictifs, leurs résultats et dépôts). Avant d’accueillir vos étudiants, supprimez-les : les comptes administrateurs, les cours, les questions et les documents ajoutés sont conservés.</p>${A.isPrincipal(A.me()) ? `<button class="btn warn" data-act="goLive">${I('check', 18)} Mettre en service (supprimer les données de démonstration)</button>` : '<p class="small muted">La mise en service est réservée à l’administrateur principal.</p>'}` : `<p class="small"><span class="badge green">En service</span> Les données de démonstration ont été supprimées${A.DB.liveAt ? ' le ' + A.fmtDate(A.DB.liveAt) : ''}.</p>`}
+${A.isPrincipal(A.me()) ? '<hr><h3>Réinitialisation complète</h3><p class="small muted">Efface toutes les données et remet la plateforme dans son état de démonstration d’origine (le compte principal est conservé avec son mot de passe initial).</p><button class="btn danger" data-act="resetDemo">Réinitialiser la plateforme</button>' : ''}</div></div>`,
       mount() {
-        document.getElementById('restore').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { const o = JSON.parse(await f.text()); if (o.v !== 2 || !Array.isArray(o.users)) throw new Error('Fichier de sauvegarde non reconnu.'); A.confirm('Remplacer toutes les données actuelles par cette sauvegarde ?', () => { const sess = A.DB.session; o.session = o.users.some((u) => u.id === sess) ? sess : null; A.replaceDB(o, () => { A.log('Base restaurée', f.name); A.save(); A.render(); }); }, 'Restaurer'); } catch (err) { A.toast(err.message); } e.target.value = ''; };
+        const rs = document.getElementById('restore'); if (rs) rs.onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { const o = JSON.parse(await f.text()); if (o.v !== 2 || !Array.isArray(o.users)) throw new Error('Fichier de sauvegarde non reconnu.'); A.confirm('Remplacer toutes les données actuelles par cette sauvegarde ?', () => { const sess = A.DB.session; o.session = o.users.some((u) => u.id === sess) ? sess : null; A.replaceDB(o, () => { A.log('Base restaurée', f.name); A.save(); A.render(); }); }, 'Restaurer'); } catch (err) { A.toast(err.message); } e.target.value = ''; };
       }
     };
   }, { perm: 'plateforme.admin' });
   A.form.settings = (f, d) => { const S = A.DB.settings; S.examOpen = !!d.get('open'); S.examN = Math.max(5, Math.min(40, +d.get('n') || 15)); S.examMin = Math.max(5, Math.min(180, +d.get('d') || 20)); S.examMax = Math.max(1, Math.min(10, +d.get('a') || 3)); A.log('Paramètres de l’examen modifiés', S.examN + ' questions, ' + S.examMin + ' min'); A.save(); A.toast('Paramètres enregistrés'); A.render(); };
   A.act.backup = () => { A.log('Sauvegarde exportée'); A.save(); A.download('sauvegarde_plateforme_' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(A.DB, null, 1)); };
-  A.act.goLive = () => A.confirm('Supprimer définitivement l’enseignant et les étudiants de démonstration, ainsi que tous les résultats, dépôts, notifications et évaluations ? Les comptes administrateurs, les cours, les questions, les vidéos et les documents ajoutés sont conservés. Pensez à exporter une sauvegarde avant.', () => {
-    A.purgeDemo(); A.DB.liveAt = Date.now(); A.log('Mise en service', 'données de démonstration supprimées'); A.save(); A.toast('Plateforme mise en service'); A.render();
+  A.act.goLive = () => A.isPrincipal(A.me()) && A.confirm('Supprimer définitivement l’enseignant et les étudiants de démonstration, ainsi que tous les résultats, dépôts, notifications et évaluations ? Les comptes administrateurs, les cours, les questions, les vidéos et les documents ajoutés sont conservés. Pensez à exporter une sauvegarde avant.', () => {
+    const keep = new Set(A.DB.users.filter((u) => !u.demo).map((u) => u.id));
+    A.DB.users = A.DB.users.filter((u) => keep.has(u.id)); A.DB.attempts = A.DB.attempts.filter((a) => keep.has(a.uid)); A.DB.subs = A.DB.subs.filter((x) => keep.has(x.uid));
+    A.DB.notifs = A.DB.notifs.filter((n) => keep.has(n.uid)); A.DB.evals = A.DB.evals.filter((e) => keep.has(e.uid)); A.DB.logs = A.DB.logs.filter((l) => !l.uid || keep.has(l.uid));
+    Object.keys(A.DB.progress).forEach((k) => { if (!keep.has(k)) delete A.DB.progress[k]; }); Object.keys(A.DB.mols).forEach((k) => { if (!keep.has(k)) delete A.DB.mols[k]; }); Object.keys(A.DB.draws).forEach((k) => { if (!keep.has(k)) delete A.DB.draws[k]; });
+    A.DB.demo = false; A.DB.liveAt = Date.now(); A.log('Mise en service', 'données de démonstration supprimées'); A.save(); A.toast('Plateforme mise en service'); A.render();
   }, 'Mettre en service');
-  A.act.resetDemo = () => A.confirm('Effacer définitivement toutes les données (comptes, résultats, dépôts, cours ajoutés) ? Seuls les deux comptes administrateurs seront recréés. Exportez une sauvegarde avant.', () => { A.reset(); A.go('connexion'); }, 'Réinitialiser');
+  A.act.resetDemo = () => A.isPrincipal(A.me()) && A.confirm('Effacer toutes les données et revenir à l’état de démonstration ?', () => { A.reset(); A.go('connexion'); }, 'Réinitialiser');
 
   // démarrage (connexion à la base en ligne si la plateforme est hébergée)
   if (A.boot) A.boot(); else A.render();

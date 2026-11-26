@@ -307,10 +307,6 @@
     })));
     if (token !== scopeToken) return;
     BUCKET.forEach((c) => (A.DB[c] || []).sort((a, b) => (a.date || 0) - (b.date || 0)));
-    if (u && u.role === 'admin' && A.DB.demo) {
-      const n = A.purgeDemo(); A.log('Comptes de démonstration supprimés', n + ' compte(s)'); A.save();
-      setTimeout(() => A.toast(n ? n + ' compte(s) de démonstration supprimé(s) de la base' : 'Plateforme mise en service'), 400);
-    }
     S.loading = false; A.render();
   }
   function onChanges(p, list, lid, live) {
@@ -402,8 +398,7 @@
   }
   A.boot = async () => {
     const hosted = /^https?:$/.test(location.protocol) && !G.claude && CFG && !CFG.disabled;
-    const localStart = () => { S.mode = 'local'; S.loading = false; if (A.DB.demo) { A.purgeDemo(); A.save(); } A.render(); };
-    if (!hosted) { localStart(); return; }
+    if (!hosted) { S.mode = 'local'; A.render(); return; }
     let cspBlocked = false; const onCsp = (e) => { if (/gstatic|firebase/.test(String(e.blockedURI || '') + String(e.sourceFile || ''))) cspBlocked = true; };
     document.addEventListener('securitypolicyviolation', onCsp);
     BK = (CFG.backend === 'firestore' || (!CFG.databaseURL && CFG.backend !== 'rtdb')) ? FS_BK : RT_BK; S.backend = BK.name;
@@ -411,7 +406,7 @@
     try { F = await loadSDK(BK.mods); }
     catch (e) {
       await new Promise((r) => setTimeout(r, 150));
-      if (cspBlocked || G.claude) { localStart(); return; }
+      if (cspBlocked || G.claude) { S.mode = 'local'; S.loading = false; A.render(); return; }
       return fatal('offline', e);
     } finally { document.removeEventListener('securitypolicyviolation', onCsp); }
     // les fonctions d'enregistrement passent désormais par la base en ligne
@@ -441,6 +436,7 @@
       if (sid) { try { const d = await withTimeout(BK.getDoc('users', sid, true), 15000); if (d) { u = fromFS('users', d); u.id = sid; if (u.active === false) u = null; } } catch (e) {} }
       A.DB.session = u ? u.id : null; writeSession();
       await setScope(u);
+      try { if (A.ensurePrincipalCloud) await A.ensurePrincipalCloud(); } catch (e) { console.warn('Compte principal', e); }
     } catch (e) { fatal(isDenied(e) ? 'denied' : 'error', e); }
   };
 
@@ -453,11 +449,12 @@
     if (!flushQueued) { flushQueued = true; Promise.resolve().then(() => { if (flushQueued) flushNow(); }); }
   }
   async function lookupUser(kind, idf) {
-    const low = String(idf || '').trim().toLowerCase(); if (!low || !db) return;
+    const low = String(idf || '').trim().toLowerCase(); if (!low || !db) return false;
     try {
       const list = await withTimeout(BK.query('users', '_idn', low), 15000);
       list.forEach((d) => applyRec('users', d.id, d.data, 'lookup'));
-    } catch (e) { console.warn(e); A.toast('Vérification en ligne impossible : contrôlez la connexion internet.'); }
+      return true;
+    } catch (e) { console.warn(e); A.toast('Vérification en ligne impossible : contrôlez la connexion internet.'); return false; }
   }
   async function ensureFile(f) {
     if (!f || !f.blob || f.text != null || f.data != null) return f;
@@ -475,6 +472,7 @@
       for (const c of ALL.concat([FILES])) await BK.wipe(c);
       Object.keys(SH).forEach((c) => SH[c].clear());
       A.DB = o; A.DB.session = o.session && (o.users || []).some((u) => u.id === o.session) ? o.session : null;
+      if (A.ensurePrincipal) A.ensurePrincipal(A.DB);
       flushNow();
       const u = A.DB.session ? A.DB.users.find((x) => x.id === A.DB.session) : null;
       await setScope(u || null);

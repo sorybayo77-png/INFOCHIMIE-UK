@@ -37,8 +37,87 @@
     }
     return H.map((h) => (h >>> 0).toString(16).padStart(8, '0')).join('');
   }
-  // empreinte salée par l'identifiant interne du compte ; le mot de passe est normalisé (é composé ou décomposé)
-  A.hashPw = (key, pw) => sha256(String(key) + '::' + String(pw).normalize('NFC'));
+  // ancienne empreinte (SHA-256 salé par l'identifiant du compte) : encore acceptée, remplacée à la connexion suivante
+  const legacyHash = (key, pw) => sha256(String(key) + '::' + String(pw).normalize('NFC'));
+
+  // ---------- PBKDF2-HMAC-SHA256 (synchrone) : les mots de passe ne sont jamais stockés en clair ----------
+  const SHA = (() => {
+    const K = new Uint32Array(64), H0 = new Uint32Array(8), W = new Uint32Array(64);
+    const frac = (x) => ((x - Math.floor(x)) * 4294967296) >>> 0;
+    for (let n = 0, p = 2; n < 64; p++) { let pr = true; for (let f = 2; f * f <= p; f++) if (p % f === 0) { pr = false; break; } if (pr) { if (n < 8) H0[n] = frac(Math.sqrt(p)); K[n++] = frac(Math.cbrt(p)); } }
+    function compress(st, blk, off) {
+      for (let i = 0; i < 16; i++) { const j = off + 4 * i; W[i] = (blk[j] << 24) | (blk[j + 1] << 16) | (blk[j + 2] << 8) | blk[j + 3]; }
+      for (let i = 16; i < 64; i++) { const a = W[i - 15], b = W[i - 2]; W[i] = (W[i - 16] + (((a >>> 7) | (a << 25)) ^ ((a >>> 18) | (a << 14)) ^ (a >>> 3)) + W[i - 7] + (((b >>> 17) | (b << 15)) ^ ((b >>> 19) | (b << 13)) ^ (b >>> 10))) | 0; }
+      let a = st[0], b = st[1], c = st[2], d = st[3], e = st[4], f = st[5], g = st[6], h = st[7];
+      for (let i = 0; i < 64; i++) {
+        const t1 = (h + (((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7))) + ((e & f) ^ (~e & g)) + K[i] + W[i]) | 0;
+        const t2 = ((((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10))) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+        h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+      }
+      st[0] += a; st[1] += b; st[2] += c; st[3] += d; st[4] += e; st[5] += f; st[6] += g; st[7] += h;
+    }
+    // suite d'un hachage déjà avancé de « pre » octets (st0), sur le message msg
+    function cont(st0, pre, msg) {
+      const st = st0.slice(), n = Math.ceil((msg.length + 9) / 64) * 64, buf = new Uint8Array(n);
+      buf.set(msg); buf[msg.length] = 0x80; const bits = (pre + msg.length) * 8;
+      buf[n - 4] = (bits >>> 24) & 255; buf[n - 3] = (bits >>> 16) & 255; buf[n - 2] = (bits >>> 8) & 255; buf[n - 1] = bits & 255; buf[n - 5] = Math.floor(bits / 4294967296) & 255;
+      for (let o = 0; o < n; o += 64) compress(st, buf, o);
+      const out = new Uint8Array(32); for (let i = 0; i < 8; i++) { out[4 * i] = st[i] >>> 24; out[4 * i + 1] = (st[i] >>> 16) & 255; out[4 * i + 2] = (st[i] >>> 8) & 255; out[4 * i + 3] = st[i] & 255; }
+      return out;
+    }
+    return { H0, compress, cont, hash: (m) => cont(H0, 0, m) };
+  })();
+  function pbkdf2(pw, salt, iter) {
+    const k = new Uint8Array(64); k.set(pw.length > 64 ? SHA.hash(pw) : pw);
+    const ip = new Uint8Array(64), op = new Uint8Array(64); for (let i = 0; i < 64; i++) { ip[i] = k[i] ^ 0x36; op[i] = k[i] ^ 0x5c; }
+    const ist = SHA.H0.slice(), ost = SHA.H0.slice(); SHA.compress(ist, ip, 0); SHA.compress(ost, op, 0);
+    const s1 = new Uint8Array(salt.length + 4); s1.set(salt); s1[salt.length + 3] = 1;
+    let u = SHA.cont(ost, 64, SHA.cont(ist, 64, s1)); const t = u.slice();
+    // itérations suivantes : un seul bloc par compression (message de 32 octets)
+    const blk = new Uint8Array(64); blk[32] = 0x80; blk[62] = 0x03; blk[63] = 0x00; // longueur = (64 + 32) × 8 = 768 bits
+    const st = new Uint32Array(8);
+    for (let n = 1; n < iter; n++) {
+      blk.set(u); st.set(ist); SHA.compress(st, blk, 0);
+      for (let i = 0; i < 8; i++) { blk[4 * i] = st[i] >>> 24; blk[4 * i + 1] = (st[i] >>> 16) & 255; blk[4 * i + 2] = (st[i] >>> 8) & 255; blk[4 * i + 3] = st[i] & 255; }
+      st.set(ost); SHA.compress(st, blk, 0);
+      for (let i = 0; i < 8; i++) { u[4 * i] = st[i] >>> 24; u[4 * i + 1] = (st[i] >>> 16) & 255; u[4 * i + 2] = (st[i] >>> 8) & 255; u[4 * i + 3] = st[i] & 255; }
+      for (let i = 0; i < 32; i++) t[i] ^= u[i];
+    }
+    return t;
+  }
+  const utf8 = (s) => new TextEncoder().encode(String(s).normalize('NFC'));
+  const hex = (b) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  const unhex = (h) => new Uint8Array((String(h).match(/../g) || []).map((x) => parseInt(x, 16)));
+  const randBytes = (n) => { const b = new Uint8Array(n); try { G.crypto.getRandomValues(b); } catch (e) { for (let i = 0; i < n; i++) b[i] = Math.floor(Math.random() * 256); } return b; };
+  const PW_ITER = 100000;
+  A.pbkdf2Hex = (pw, saltHex, iter) => hex(pbkdf2(utf8(pw), unhex(saltHex), iter));
+  // nouvelle empreinte : « pbkdf2$itérations$sel$empreinte » (le premier argument est conservé pour compatibilité)
+  A.hashPw = (key, pw) => { const salt = randBytes(16); return 'pbkdf2$' + PW_ITER + '$' + hex(salt) + '$' + hex(pbkdf2(utf8(pw), salt, PW_ITER)); };
+  const sameHex = (a, b) => { if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; };
+  A.verifyHash = (stored, pw, legacyKey) => {
+    const s = String(stored || '');
+    if (s.startsWith('pbkdf2$')) { const [, it, sh, hh] = s.split('$'); return sameHex(A.pbkdf2Hex(pw, sh, +it || PW_ITER), hh || ''); }
+    return !!s && legacyKey != null && s === legacyHash(legacyKey, pw);
+  };
+
+  // ---------- administrateur principal (unique) ----------
+  // Seule l'empreinte PBKDF2 du mot de passe figure ici, jamais le mot de passe lui-même.
+  A.PRINCIPAL_CODE = 'BAGLAM-001';
+  const PRINCIPAL_HASH = 'pbkdf2$200000$8906d87c0de8182947ceb45294b00c04$2cd38a54aff17e64a795c85da5a3e10c3f1c96b72b02b8ceaec3f58c0a9e502b';
+  A.principalRecord = () => ({ id: 'u-principal', name: 'Administrateur principal', role: 'admin', code: A.PRINCIPAL_CODE, principal: true, titre: 'Administrateur principal', dept: 'Administration de la plateforme', pw: PRINCIPAL_HASH, active: true, created: Date.now() });
+  A.isPrincipal = (u) => !!(u && u.role === 'admin' && u.principal && String(u.code || '').toUpperCase() === A.PRINCIPAL_CODE);
+  // garantit un seul administrateur principal, toujours actif ; renvoie true si la base a été modifiée
+  A.ensurePrincipal = (D) => {
+    let changed = false, p = (D.users || []).find((u) => u.role === 'admin' && String(u.code || '').toUpperCase() === A.PRINCIPAL_CODE);
+    if (!p) { p = A.principalRecord(); D.users.unshift(p); changed = true; }
+    if (!p.principal) { p.principal = true; changed = true; }
+    if (p.active === false) { p.active = true; changed = true; }
+    D.users.forEach((u) => { if (u !== p && u.principal) { delete u.principal; changed = true; } });
+    // anciens comptes administrateurs de démonstration encore protégés par le mot de passe public : désactivés
+    D.users.forEach((u) => { if (u !== p && u.role === 'admin' && u.active !== false && u.pwDefault && /^ADM-00[12]$/i.test(String(u.code || '')) && A.verifyHash && A.verifyHash(u.pw, A.DEMO_PW, u.id)) { u.active = false; u.demoLocked = true; changed = true; } });
+    return changed;
+  };
+  A.adminTitle = (u) => (A.isPrincipal(u) ? 'Administrateur principal' : (!u.titre || /principal/i.test(u.titre) ? 'Administrateur' : u.titre));
   A.DEMO_PW = 'Guinée224@';
   A.PW_HINT = 'Au moins 8 caractères, avec une majuscule, une minuscule, un chiffre et un caractère spécial (exemple : Guinée224@).';
   A.pwPolicy = (p) => {
@@ -69,40 +148,75 @@
     admin: Object.fromEntries(A.PERMS.map(([k]) => [k, true]))
   });
 
-  // base de départ : uniquement les deux comptes administrateurs (aucun compte de démonstration)
   function seed() {
-    const now = Date.now();
-    const U = (id, name, role, extra) => ({ id, name, role, pw: A.hashPw(id, A.DEMO_PW), active: true, created: now, ...extra });
+    const now = Date.now(), D = 86400000;
+    const demoHash = A.hashPw('demo', A.DEMO_PW);
+    const U = (id, name, role, extra) => ({ id, name, role, pw: demoHash, active: true, created: now - 40 * D, ...extra });
     const users = [
-      U('u-adm1', 'M. Alhouseny CISSE', 'admin', { code: 'ADM-001', titre: 'Administrateur principal', dept: 'Administration de la plateforme', pwDefault: true }),
-      U('u-adm2', 'Sory BAGAYOKO', 'admin', { code: 'ADM-002', titre: 'Administrateur, assistant', dept: 'Administration de la plateforme', pwDefault: true })
+      A.principalRecord(),
+      U('u-ens', 'Dr Ibrahima Sylla', 'enseignant', { email: 'enseignant@demo.edu', dept: 'Département de chimie', demo: true }),
+      U('u-etu', 'Mariama Bah', 'etudiant', { matricule: '20200104962', filiere: 'Licence 2 Chimie', demo: true }),
+      U('u-e2', 'Mamadou Camara', 'etudiant', { matricule: '20200105118', filiere: 'Licence 2 Chimie', demo: true }),
+      U('u-e3', 'Fatoumata Barry', 'etudiant', { matricule: '20210107354', filiere: 'Licence 1 Sciences et technologies', demo: true }),
+      U('u-e4', 'Ousmane Keita', 'etudiant', { matricule: '20190102271', filiere: 'Licence 3 Chimie analytique', demo: true })
     ];
+    const lessonsOf = (mods) => K.modules.filter((m) => mods.includes(m.id)).flatMap((m) => m.lessons.map((l) => l.id));
+    const P = (ids, d0) => Object.fromEntries(ids.map((id, k) => [id, now - (d0 - k * 0.6) * D]));
+    const progress = {
+      'u-etu': P(lessonsOf([1, 2]).concat(['3-1', '3-2']), 9),
+      'u-e2': P(lessonsOf([1, 2, 3, 4]).concat(['5-1', '5-2']), 20),
+      'u-e3': P(['1-1', '1-2'], 4),
+      'u-e4': P(lessonsOf([1, 2, 3, 4, 5, 6]), 30)
+    };
+    const att = [];
+    const gen = (uid, mod, ok, days) => {
+      const qs = K.modules[mod - 1].quiz; const snap = qs.map((q) => ({ ...q }));
+      const answers = qs.map((q, i) => { const good = i < ok; return { given: q.t === 'court' ? (good ? q.acc[0] : '?') : (good ? q.a : (q.a + 1) % q.o.length), ok: good }; });
+      att.push({ id: A.uid('a-'), uid, kind: 'module', ref: mod, score: ok, max: qs.length, date: now - days * D, qs: snap, answers });
+    };
+    gen('u-etu', 1, 5, 8); gen('u-etu', 2, 5, 3);
+    gen('u-e2', 1, 6, 18); gen('u-e2', 2, 6, 15); gen('u-e2', 3, 6, 10); gen('u-e2', 4, 5, 6);
+    gen('u-e3', 1, 3, 2);
+    gen('u-e4', 1, 6, 28); gen('u-e4', 2, 7, 25); gen('u-e4', 3, 7, 20); gen('u-e4', 4, 6, 15); gen('u-e4', 5, 6, 9); gen('u-e4', 6, 5, 5);
+    att.push({ id: A.uid('a-'), uid: 'u-e4', kind: 'exam', ref: 'final', score: 12, max: 15, date: now - 2 * D, qs: [], answers: [] });
+    const waterMol = C.toMolfile({ name: 'eau', atoms: [{ el: 'O', x: 0, y: 0, z: 0 }, { el: 'H', x: 0.757, y: -0.586, z: 0 }, { el: 'H', x: -0.757, y: -0.586, z: 0 }], bonds: [{ a: 0, b: 1, o: 1 }, { a: 0, b: 2, o: 1 }] }, { name: 'Eau' });
+    const ch4 = C.toXYZ(C.REF3D.methane(), 'Methane - Avogadro');
+    const subs = [
+      { id: 's-1', uid: 'u-e2', tp: 1, date: now - 12 * D, comment: 'Structure de l’eau et formule développée.', files: [{ name: 'CAMARA_Mamadou_TP1.mol', size: waterMol.length, type: 'mol', text: waterMol }], status: 'corrige', grade: 16, feedback: 'Très bien. Pensez à indiquer la masse molaire sur l’image exportée.', gradedBy: 'u-ens', gradedAt: now - 10 * D },
+      { id: 's-2', uid: 'u-e3', tp: 1, date: now - 2 * D, comment: 'Premier essai.', files: [{ name: 'BARRY_Fatoumata_TP1.mol', size: waterMol.length, type: 'mol', text: waterMol }], status: 'corrige', grade: 12, feedback: 'Structure correcte, mais il manque la formule développée H–O–H demandée.', gradedBy: 'u-ens', gradedAt: now - D },
+      { id: 's-3', uid: 'u-etu', tp: 1, date: now - 1 * D, comment: 'Molécule d’eau dessinée dans ChemSketch, exportée en MOL.', files: [{ name: 'BAH_Mariama_TP1.mol', size: waterMol.length, type: 'mol', text: waterMol }], status: 'rendu' },
+      { id: 's-4', uid: 'u-e4', tp: 4, date: now - 3 * D, comment: 'Méthane construit et optimisé ; angle H–C–H mesuré à 109,5°.', files: [{ name: 'KEITA_Ousmane_TP4.xyz', size: ch4.length, type: 'xyz', text: ch4 }], status: 'rendu' }
+    ];
+    const N = (uid, text, link, days, read) => ({ id: A.uid('n-'), uid, text, link, date: now - days * D, read: !!read });
+    const notifs = [
+      N('u-etu', 'Bienvenue sur la plateforme ! Commencez par le module 1.', 'module-1', 9, true),
+      N('u-etu', 'Le module 3 « Dessin des structures chimiques en 2D » est disponible.', 'module-3', 2),
+      N('u-e2', 'Votre TP 1 a été corrigé : 16/20.', 'tp-1', 10),
+      N('u-ens', 'Nouveau dépôt : Mariama Bah — TP 1.', 'corrections', 1),
+      N('u-ens', 'Nouveau dépôt : Ousmane Keita — TP 4.', 'corrections', 3)
+    ];
+    const logs = [
+      { date: now - 3 * D, uid: 'u-e4', act: 'Dépôt de travail', det: 'TP 4' },
+      { date: now - 2 * D, uid: 'u-e4', act: 'Examen final terminé', det: '12/15' },
+      { date: now - D - 3600e3, uid: 'u-ens', act: 'Correction', det: 'Fatoumata Barry — TP 1 : 12/20' },
+      { date: now - D, uid: 'u-etu', act: 'Dépôt de travail', det: 'TP 1' },
+      { date: now - 5 * D, uid: 'u-principal', act: 'Évaluation de l’évolution', det: 'Mamadou Camara (20200105118) : 15/20' }
+    ];
+    const evals = [{ id: 'ev-1', uid: 'u-e2', by: 'u-principal', date: now - 5 * D, global: 15, comment: 'Bonne régularité sur les modules 1 à 4. Poursuivre avec le module 5 avant l’examen final.', mods: { 1: 16, 2: 16, 3: 14, 4: 15 }, snap: { prog: 58, avg: 0.85 } }];
     return {
-      v: 2, demo: false, evals: [], users, session: null, progress: {}, attempts: [], subs: [], notifs: [], logs: [{ id: A.uid('l-'), date: now, uid: null, act: 'Création de la plateforme', det: 'comptes administrateurs' }],
-      lessons: [], questions: [], videos: [], docs: [], mols: {}, draws: {},
+      v: 2, demo: true, evals, users, session: null, progress, attempts: att, subs, notifs, logs, lessons: [], questions: [], videos: [], docs: [], mols: {}, draws: { 'u-etu': { d1: now - 6 * D, d3: now - 5 * D }, 'u-e4': { d1: now - 20 * D, d2: now - 20 * D, d3: now - 19 * D, d9: now - 12 * D } },
       modState: Object.fromEntries(K.modules.map((m) => [m.id, true])), perms: defPerms(),
-      settings: { examMin: 20, examN: 15, examMax: 3, examOpen: true }, seededAt: now, liveAt: now
+      settings: { examMin: 20, examN: 15, examMax: 3, examOpen: true }, seededAt: now
     };
   }
-  // suppression des comptes de démonstration (anciennes bases) et de tout ce qui leur est rattaché
-  A.purgeDemo = () => {
-    const D = A.DB, demo = new Set(D.users.filter((u) => u.demo).map((u) => u.id));
-    if (demo.size) {
-      const keep = (uid) => !demo.has(uid);
-      D.users = D.users.filter((u) => !demo.has(u.id)); D.attempts = D.attempts.filter((a) => keep(a.uid)); D.subs = D.subs.filter((x) => keep(x.uid));
-      D.notifs = D.notifs.filter((n) => keep(n.uid)); D.evals = D.evals.filter((e) => keep(e.uid)); D.logs = D.logs.filter((l) => !l.uid || keep(l.uid));
-      ['progress', 'mols', 'draws'].forEach((k) => Object.keys(D[k] || {}).forEach((id) => { if (demo.has(id)) delete D[k][id]; }));
-    }
-    D.demo = false; D.liveAt = D.liveAt || Date.now();
-    return demo.size;
-  };
   // remplacement complet de la base (réinitialisation, restauration) ; en ligne, cloud.js remplace ces fonctions
-  A.replaceDB = (o, after) => { A.DB = o; A.save(); if (after) after(); };
+  A.replaceDB = (o, after) => { A.DB = o; A.ensurePrincipal(A.DB); A.save(); if (after) after(); };
   A.reset = () => A.replaceDB(seed());
   A.lookupUser = async () => {};
   A.ensureFile = async (f) => f;
   A.ensureFiles = (list) => Promise.all((list || []).map((f) => A.ensureFile(f)));
   A.DB = load(); if (!A.DB || A.DB.v !== 2) { A.DB = seed(); A.save(); }
+  if (A.ensurePrincipal(A.DB)) A.save();
   if (!A.DB.evals) A.DB.evals = [];
 
   // ---------- session, rôles, journal ----------
@@ -119,7 +233,14 @@
     return A.DB.users.find((u) => u.role === kind && String(u[f] || '').toLowerCase() === low) || null;
   };
   A.findAny = (idf) => A.findUser('etudiant', idf) || A.findUser('enseignant', idf) || A.findUser('admin', idf);
-  A.checkPw = (u, pw) => u.pw === A.hashPw(u.id, pw);
+  // vérifie le mot de passe ; une ancienne empreinte reconnue est remplacée par une empreinte PBKDF2
+  A.checkPw = (u, pw) => { if (!u) return false; const ok = A.verifyHash(u.pw, pw, u.id); if (ok && !String(u.pw).startsWith('pbkdf2$')) u.pw = A.hashPw(u.id, pw); return ok; };
+  // en ligne : vérifie que le compte principal existe dans la base partagée, sinon le crée (une seule fois)
+  A.ensurePrincipalCloud = async () => {
+    const found = await A.lookupUser('admin', A.PRINCIPAL_CODE);
+    if (found === false) return; // base injoignable : ne rien créer à l'aveugle
+    if (A.ensurePrincipal(A.DB)) A.save();
+  };
   A.admins = () => A.DB.users.filter((u) => u.role === 'admin');
   A.lastEval = (uid) => A.DB.evals.filter((e) => e.uid === uid).sort((a, b) => b.date - a.date)[0] || null;
   A.login = (u) => { A.DB.session = u.id; u.last = Date.now(); A.log('Connexion', A.roleName[u.role]); A.save(); };
@@ -147,6 +268,8 @@
 
   // ---------- icônes ----------
   const IC = {
+    pause: '<rect x="6.5" y="5" width="3.5" height="14" rx="1"/><rect x="14" y="5" width="3.5" height="14" rx="1"/>',
+    image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-9 8"/>', search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', award: '<circle cx="12" cy="9" r="6"/><path d="m8.5 14-1.5 7 5-3 5 3-1.5-7"/>', grid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
     home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>', book: '<path d="M4 4h10a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4z"/><path d="M8 9h6"/>',
     hex: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><circle cx="12" cy="12" r="2"/>', cube: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
     flask: '<path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path d="M7 15h10"/>', pencil: '<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>',
@@ -238,6 +361,7 @@
     if (u && hit.opt.guest) { location.replace('#tableau'); return; }
     let v;
     if (hit.opt.admin && (!u || u.role !== 'admin')) v = { title: 'Accès réservé', html: `<div class="card empty"><h2>Fenêtre réservée aux administrateurs</h2><p>Cette page n’est accessible qu’aux administrateurs de la plateforme.</p><a class="btn pri" href="#tableau">Retour au tableau de bord</a></div>` };
+    else if (hit.opt.principal && !A.isPrincipal(u)) v = { title: 'Accès réservé', html: `<div class="card empty"><h2>Réservé à l’administrateur principal</h2><p>Seul l’administrateur principal peut ouvrir cette page.</p><a class="btn pri" href="#tableau">Retour au tableau de bord</a></div>` };
     else if (hit.opt.perm && !A.can(hit.opt.perm)) v = { title: 'Accès refusé', html: `<div class="card empty"><h2>Accès refusé</h2><p>Votre rôle ne permet pas d’ouvrir cette page.</p><a class="btn pri" href="#tableau">Retour au tableau de bord</a></div>` };
     else v = hit.fn(hit.m) || { html: '' };
     const pub = hit.opt.public && (!u || hit.opt.bare);
@@ -254,7 +378,7 @@
   };
   A.topbar = (u, pub) => {
     const unread = u ? A.DB.notifs.filter((n) => n.uid === u.id && !n.read).length : 0;
-    return `<header class="topbar"><a class="brand" href="#${u ? 'tableau' : 'accueil'}">${A.logo()}<span class="bt">INFOCHIMIE UK<small>Informatique appliquée à la chimie</small></span></a><span class="sp"></span>${A.cloudPill ? A.cloudPill() : ''}` +
+    return `<header class="topbar"><a class="brand" href="#${u ? 'tableau' : 'accueil'}"><img class="uk-logo" src="img/logo-universite-kindia.png" width="44" height="44" alt="Université de Kindia"><span class="bt">INFOCHIMIE UK<small>Université de Kindia · Informatique appliquée à la chimie</small></span></a><span class="sp"></span>${A.cloudPill ? A.cloudPill() : ''}` +
       (u ? `<button class="iconbtn" data-act="notifs" aria-label="Notifications (${unread} non lues)">${A.icon('bell', 22)}${unread ? `<span class="dot">${unread}</span>` : ''}</button>
       <div class="userchip"><span class="avatar">${esc(A.initials(u.name))}</span><span class="who">${esc(u.name)}<small>${A.roleName[u.role]}</small></span></div>
       ${pub ? '<a class="btn sm pri" href="#tableau">Mon espace</a>' : ''}<button class="iconbtn" data-act="logout" aria-label="Se déconnecter" title="Se déconnecter">${A.icon('logout', 22)}</button>`
@@ -268,8 +392,9 @@
       ['Évaluer'], ['evaluations', 'Évaluations', 'clip'], ['resultats', 'Résultats et progression', 'chart'], ['Compte'], ['profil', 'Profil', 'user']);
     if (u.role === 'enseignant') n.push(['Enseigner'], ['tableau', 'Tableau de bord', 'home'], ['gestion-cours', 'Gestion des cours', 'book'], ['questionnaires', 'Exercices et questionnaires', 'pencil'], ['corrections', 'Corrections', 'check'], ['suivi', 'Suivi des étudiants', 'chart'],
       ['Ressources'], ['cours', 'Voir les cours', 'eye'], ['bibliotheque', 'Bibliothèque', 'lib'], ['videos', 'Vidéos', 'video'], ['atelier-2d', 'Atelier 2D', 'hex'], ['atelier-3d', 'Atelier 3D', 'cube'], ['tp', 'Fiches de TP', 'flask'], ['Compte'], ['profil', 'Profil', 'user']);
-    if (u.role === 'admin') n.push(['Administrer'], ['tableau', 'Tableau de bord', 'home'], ['controle', 'Contrôle des étudiants', 'eye'], ['utilisateurs', 'Utilisateurs', 'users'], ['gestion-cours', 'Cours et modules', 'book'], ['parametres', 'Évaluations et sauvegarde', 'gear'], ['autorisations', 'Autorisations', 'shield'], ['journal', 'Journal et statistiques', 'log'],
-      ['Contenus'], ['cours', 'Voir les cours', 'book'], ['bibliotheque', 'Bibliothèque', 'lib'], ['atelier-3d', 'Atelier 3D', 'cube'], ['Compte'], ['profil', 'Profil', 'user']);
+    if (u.role === 'admin') n.push(['Administrer'], ['tableau', 'Tableau de bord', 'home'], ['controle', 'Contrôle des étudiants', 'eye'], ['utilisateurs', 'Utilisateurs', 'users'], ['gestion-cours', 'Cours et modules', 'book'], ['parametres', 'Évaluations et sauvegarde', 'gear'], ...(A.isPrincipal(u) ? [['autorisations', 'Autorisations', 'shield']] : []), ['journal', 'Journal et statistiques', 'log'], ['vitrine', 'Accueil, hommage et catalogue', 'image'],
+      ['Contenus'], ['cours', 'Voir les cours', 'book'], ['bibliotheque', 'Bibliothèque', 'lib'], ['atelier-2d', 'Atelier 2D', 'hex'], ['atelier-3d', 'Atelier 3D', 'cube'], ['Compte'], ['profil', 'Profil', 'user']);
+    n.push(['Département'], ['enseignants', 'Enseignants de chimie', 'users']);
     return n;
   };
   A.sidebar = (u, h) => {

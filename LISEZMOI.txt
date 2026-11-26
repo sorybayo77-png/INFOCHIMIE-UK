@@ -24,20 +24,63 @@ CE QUI CHANGE
   reste en « Mode local » : les données restent alors dans le navigateur, comme avant.
 
 NOUVEAUTÉS DE CETTE VERSION
-- Nouveau nom : INFOCHIMIE UK (barre du haut, page d'accueil, titres, documents).
-- Tous les cours se téléchargent en PDF : chaque leçon, chaque module, le cours complet,
-  les fiches de TP, les guides, les exercices corrigés et les relevés de notes.
-  Les PDF contiennent les illustrations des composés (structures 2D et modèles 3D en image).
-- Images des composés : boutons « Image PNG » et « Image SVG » dans l'atelier 2D, « Image PNG »
-  dans l'atelier 3D, bouton « Image » sur les figures des leçons, et 131 composés standard
-  téléchargeables en PNG, SVG ou image 3D (Bibliothèque › Composés standard en image).
-- Ateliers 2D et 3D : zone « Écrire un composé ». On peut écrire :
-    * un nom : éthanol, propan-2-ol, but-2-ène, acide propanoïque, éthanoate d'éthyle,
-      2-méthylpropane, cyclohexanol, 1,2-dichloroéthane…
-    * une formule semi-développée : CH3-CH2-OH, CH3-CO-CH3, CH2=CH-CH3, HC≡CH, (CH3)3C-OH, C6H5-COOH
-    * une formule brute : C2H6O, C4H10 (la plateforme propose les isomères connus)
-    * un SMILES : CCO, CC(=O)O, c1ccccc1
-  Boutons rapides (eau, méthane, éthanol…) et fenêtre « Composés standard » classée par familles.
+- Page d'accueil :
+    * le logo de l'Université de Kindia est placé dans l'angle de la plateforme (barre du haut,
+      visible sur toutes les pages) et sert d'icône d'onglet ;
+    * diaporama animé (fondu enchaîné et zoom lent) : Sory BAGAYOKO, puis M. Alhouseny CISSE,
+      avec bouton pause ; l'animation est coupée pour les personnes qui ont demandé moins
+      d'animations dans leur système ;
+    * hommage à M. Thierno Diogo SOW, Chef du Département de Chimie ;
+    * catalogue des enseignants du Département de Chimie (7 photos), avec une page complète
+      « Enseignants de chimie » (#enseignants) et l'agrandissement de chaque photo ;
+    * bandeau du campus de l'Université de Kindia.
+  Tout se modifie sans toucher au code : Espace administrateur › « Accueil, hommage et catalogue »
+  (noms et fonctions des enseignants, texte de l'hommage, ordre des photos, ajout ou remplacement
+  de photos — elles sont réduites automatiquement avant l'enregistrement).
+- Ateliers 2D et 3D : recherche de N'IMPORTE QUEL composé.
+    * La zone « Rechercher ou écrire un composé » accepte un nom français ou anglais (sulfate de
+      cuivre, chlorure de sodium, caféine, cholestérol, testosterone…), une formule brute
+      (C6H12O6), un SMILES (y compris les ions : [Na+].[Cl-], CC(=O)[O-]), un numéro CID PubChem
+      (2244) ou un numéro CAS (50-78-2).
+    * Les 131 composés intégrés fonctionnent sans Internet. Pour tout autre composé, la plateforme
+      interroge automatiquement PubChem (base publique du NCBI, plus de 100 millions de composés) :
+      les noms français sont traduits en anglais, la structure 2D est chargée dans l'éditeur et,
+      dans l'atelier 3D, le conformère 3D calculé par PubChem est affiché (à défaut, la géométrie
+      est construite et optimisée par la plateforme). Bouton « En ligne » pour interroger PubChem
+      directement ; suggestions de noms pendant la saisie.
+    * Tableau périodique complet (118 éléments) dans les deux ateliers (bouton à quatre carrés).
+    * Charges : outils ⊕ et ⊖ (ou touches + et − sur l'atome survolé) ; les ions sont gérés
+      partout (hydrogènes implicites de NH4+, H3O+…, formules, SMILES, fichiers .mol/.sdf, 3D).
+    * Les métaux ne reçoivent pas d'hydrogènes implicites ; les formules et masses molaires
+      couvrent tous les éléments.
+  La recherche en ligne nécessite une connexion Internet ; sans réseau, un message l'indique et les
+  composés intégrés restent disponibles.
+- Comptes :
+    * étudiants : matricule (exemple 20200104962) + mot de passe composé (exemple Guinée224@ :
+      au moins 8 caractères, une majuscule, une minuscule, un chiffre, un caractère spécial) ;
+    * administrateurs : code identifiant personnel, voir ci-dessous.
+- Mots de passe enregistrés sous forme d'empreinte PBKDF2-SHA256 salée (100 000 itérations ;
+  200 000 pour le compte principal). Les anciennes empreintes sont converties à la connexion.
+
+ADMINISTRATEURS
+- Un seul administrateur principal : code identifiant BAGLAM-001. Son mot de passe est celui qui a
+  été communiqué au développeur ; il ne figure nulle part dans le code ni dans ce document (seule
+  son empreinte PBKDF2 est intégrée). Le compte principal est créé automatiquement, y compris dans
+  une base en ligne déjà existante. Il ne peut être ni supprimé, ni désactivé, ni rétrogradé.
+- Seul l'administrateur principal crée les autres comptes administrateurs : Utilisateurs › rôle
+  « Administrateur ». Le code identifiant est généré automatiquement à chaque création
+  (BAGLAM-002, BAGLAM-003, …) et un mot de passe provisoire s'affiche une seule fois ; le nouvel
+  administrateur le change dans « Profil ».
+- Réservé à l'administrateur principal : créer, modifier, désactiver ou supprimer un administrateur,
+  attribuer ou retirer le rôle administrateur, Autorisations, Restaurer une sauvegarde, Mettre en
+  service, Réinitialiser la plateforme.
+- Tous les administrateurs disposent de la fenêtre « Contrôle des étudiants » (évolution de tous
+  les étudiants sans exception et note pour chaque évolution), gèrent étudiants et enseignants,
+  et modifient l'accueil (photos, hommage, catalogue).
+- Les anciens comptes de démonstration ADM-001 et ADM-002 n'existent plus. S'ils sont encore dans
+  une base existante avec le mot de passe public de démonstration, ils sont désactivés
+  automatiquement ; l'administrateur principal peut les supprimer dans « Utilisateurs ».
+- Le nom affiché du compte principal (« Administrateur principal ») se change dans « Profil ».
 
 MISE EN LIGNE (une seule fois)
 1. Ouvrez https://console.firebase.google.com et choisissez le projet infochimie-uk.
@@ -59,13 +102,15 @@ MISE EN LIGNE (une seule fois)
    automatiquement avec les données de démonstration.
 
 À FAIRE JUSTE APRÈS LA MISE EN LIGNE
-- Connectez-vous dans l'Espace administrateur avec ADM-001 puis ADM-002 (mot de passe initial
-  Guinée224@) et changez immédiatement les deux mots de passe dans « Profil ».
-  En ligne, ce mot de passe initial n'est plus affiché sur la page de connexion.
+- Espace administrateur : connectez-vous avec le code BAGLAM-001 et le mot de passe principal,
+  puis créez les comptes des autres administrateurs (codes BAGLAM-002, BAGLAM-003… générés
+  automatiquement). Vous pouvez aussi changer le mot de passe principal dans « Profil ».
+- Accueil, hommage et catalogue : complétez les noms et fonctions des enseignants du catalogue
+  (les photos sont en place, les noms sont à saisir) et relisez le texte de l'hommage.
 - Quand les vrais étudiants arrivent : Évaluations et sauvegarde › « Mettre en service » supprime
-  l'enseignant et les étudiants de démonstration.
-- Pour reprendre les données de l'ancienne version (aperçu ou fichier autonome) : dans l'ancienne
-  version, Évaluations et sauvegarde › Exporter une sauvegarde ; dans la nouvelle, Restaurer.
+  l'enseignant et les étudiants de démonstration (mot de passe de démonstration : Guinée224@).
+- Pour reprendre les données d'une ancienne version : dans l'ancienne version, Évaluations et
+  sauvegarde › Exporter une sauvegarde ; dans la nouvelle, Restaurer (administrateur principal).
 
 MISES À JOUR DU SITE
 - Modifiez les fichiers du dossier public, puis relancez « firebase deploy ».
@@ -80,7 +125,10 @@ SÉCURITÉ — À LIRE
   Authentication (un compte Firebase par utilisateur) et des règles par rôle (un étudiant ne lit que
   ses données, seuls enseignants et administrateurs voient les résultats de tous).
 
-LICENCES DES COMPOSANTS INCLUS
+LICENCES ET SOURCES
+- Données des composés recherchés en ligne : PubChem (National Center for Biotechnology
+  Information, NIH), domaine public — https://pubchem.ncbi.nlm.nih.gov
+- Données des éléments (masses, rayons, couleurs) : tables usuelles (IUPAC, Pyykkö, Jmol).
 - jsPDF (création des PDF dans le navigateur) : licence MIT — public/js/vendor/jspdf.umd.min.js
 - Police Source Sans 3 (Adobe), réduite aux caractères utiles : licence SIL Open Font License 1.1
   — public/js/vendor/pdf-fonts.js

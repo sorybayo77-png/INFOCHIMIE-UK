@@ -39,7 +39,7 @@
     changed() { this.render(); this.onChange(this.getMol()); }
     clear() { if (!this.atoms.length) return; this.save(); this.atoms = []; this.bonds = []; this.changed(); }
     getMol() { return { name: this.name || 'molécule', atoms: this.atoms.map((a) => ({ ...a })), bonds: this.bonds.map((b) => ({ ...b })) }; }
-    load(m, keepHist) { if (!keepHist) this.save(); this.name = m.name || ''; this.atoms = m.atoms.map((a) => ({ el: a.el, x: a.x, y: a.y })); this.bonds = m.bonds.map((b) => ({ a: b.a, b: b.b, o: b.o === 1.5 ? 1 : b.o })); this.fit(); this.changed(); }
+    load(m, keepHist) { if (!keepHist) this.save(); this.name = m.name || ''; this.atoms = m.atoms.map((a) => ({ el: a.el, x: a.x, y: a.y, ...C.extra(a) })); this.bonds = m.bonds.map((b) => ({ a: b.a, b: b.b, o: b.o === 1.5 ? 1 : b.o })); this.fit(); this.changed(); }
     // --- géométrie ---
     size() { const r = this.svg.getBoundingClientRect(); return { w: r.width || 600, h: r.height || 400, r }; }
     world(e) { const { w, h, r } = this.size(); return { x: this.cx + (e.clientX - r.left - w / 2) / this.zoom, y: this.cy + (e.clientY - r.top - h / 2) / this.zoom }; }
@@ -133,6 +133,7 @@
         return;
       }
       if (this.tool === 'cycle') { this.save(); this.placeRing(pr.p, pr.atom); this.changed(); return; }
+      if (this.tool === 'charge') { if (pr.atom >= 0) { this.save(); this.bumpCharge(pr.atom, this.chgSign || 1); this.changed(); } return; }
       // outil dessiner
       if (pr.moved && g) {
         this.save();
@@ -143,7 +144,7 @@
       }
       if (pr.atom >= 0) {
         this.save(); const a = this.atoms[pr.atom];
-        if (a.el !== this.el) a.el = this.el;
+        if (a.el !== this.el) { a.el = this.el; delete a.chg; delete a.hx; }
         else { const q = this.growPos(pr.atom, this.order); const ex = this.atomNear(q.x, q.y, pr.atom); const j = ex >= 0 ? ex : this.addAtom(q.x, q.y); this.addBond(pr.atom, j, this.order); }
         this.changed(); return;
       }
@@ -158,19 +159,21 @@
       const map = { c: 'C', h: 'H', n: 'N', o: 'O', s: 'S', p: 'P', f: 'F', l: 'Cl', b: 'Br', i: 'I' };
       if (map[k.toLowerCase()]) { this.el = map[k.toLowerCase()]; this.tool = 'dessiner'; this.onSettings(); e.preventDefault(); return; }
       if (['1', '2', '3'].includes(k)) { this.order = +k; this.tool = 'dessiner'; this.onSettings(); e.preventDefault(); return; }
+      if ((k === '+' || k === '-') && this.hover && this.hover.atom != null) { e.preventDefault(); this.save(); this.bumpCharge(this.hover.atom, k === '+' ? 1 : -1); this.changed(); return; }
       if ((k === 'Delete' || k === 'Backspace') && this.hover) {
         e.preventDefault(); this.save();
         if (this.hover.atom != null) this.delAtom(this.hover.atom); else if (this.hover.bond != null) this.bonds.splice(this.hover.bond, 1);
         this.hover = null; this.changed();
       }
     }
-    setZoom(z) { this.zoom = Math.max(0.3, Math.min(3, z)); this.render(); }
+    setZoom(z) { this.zoom = Math.max(0.12, Math.min(3, z)); this.render(); }
+    bumpCharge(i, d) { const a = this.atoms[i]; if (!a) return; const q = Math.max(-4, Math.min(4, (a.chg | 0) + d)); if (q) a.chg = q; else delete a.chg; }
     fit() {
       if (!this.atoms.length) { this.cx = 0; this.cy = 0; this.zoom = 1; this.render(); return; }
       const xs = this.atoms.map((a) => a.x), ys = this.atoms.map((a) => a.y);
       const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
       const { w, h } = this.size(); this.cx = (x0 + x1) / 2; this.cy = (y0 + y1) / 2;
-      this.zoom = Math.max(0.35, Math.min(1.5, Math.min(w / (x1 - x0 + 3 * this.L), h / (y1 - y0 + 3 * this.L))));
+      this.zoom = Math.max(0.12, Math.min(1.5, Math.min(w / (x1 - x0 + 3 * this.L), h / (y1 - y0 + 3 * this.L))));
       this.render();
     }
     // --- rendu ---
@@ -178,7 +181,7 @@
       const svg = this.svg, { w, h } = this.size(), z = this.zoom;
       svg.setAttribute('viewBox', `${this.cx - w / 2 / z} ${this.cy - h / 2 / z} ${w / z} ${h / z}`);
       const m = { atoms: this.atoms, bonds: this.bonds }, adj = C.adjacency(m), out = [], fs = 15;
-      const labeled = (i) => { const a = this.atoms[i]; if (a.el !== 'C') return true; if (this.display !== 'topo') return true; return adj[i].length === 0; };
+      const labeled = (i) => { const a = this.atoms[i]; if (a.el !== 'C' || a.chg) return true; if (this.display !== 'topo') return true; return adj[i].length === 0; };
       // liaisons
       this.bonds.forEach((b, k) => {
         const A = this.atoms[b.a], B = this.atoms[b.b]; if (!A || !B) return;
@@ -221,8 +224,9 @@
         const ax = adj[i].reduce((s, x) => s + this.atoms[x.j].x - a.x, 0);
         const left = hN > 0 && ax > 1;
         const sw = 0.64 * fs * a.el.length, hw = hN ? 0.64 * fs + (hN > 1 ? 0.45 * fs : 0) : 0;
-        const ec = C.EL[a.el] && C.EL[a.el].l ? ' e-' + a.el : '';
-        const st = ec ? ` class="${ec.trim()}"` : '';
+        const E = C.EL[a.el], css = ['O', 'N', 'S', 'Cl', 'Br', 'I', 'F', 'P', 'B', 'Si'].includes(a.el);
+        const ec = E && E.l ? (css ? ' e-' + a.el : ' ex') : '';
+        const st = ec ? ` class="${ec.trim()}"${css ? '' : ` style="--ec:${E.l};--ecd:${E.ld || E.l}"`}` : '';
         const sub = hN > 1 ? `<tspan class="sub${ec}" dy="4">${hN}</tspan>` : '';
         const y = a.y + fs * 0.35;
         if (left) {
@@ -232,6 +236,7 @@
           out.push(`<rect class="lbg" x="${(a.x - sw / 2 - 2).toFixed(1)}" y="${(a.y - 10).toFixed(1)}" width="${(sw + hw + 4).toFixed(1)}" height="20" rx="4"/>`);
           out.push(`<text class="lb${bad ? ' bad' : ''}" x="${(a.x - sw / 2).toFixed(1)}" y="${y.toFixed(1)}" text-anchor="start"><tspan${st}>${a.el}</tspan>${hN ? `<tspan${st}>H</tspan>` + sub : ''}</text>`);
         }
+        if (a.chg) { const t = C.chargeTxt(a.chg), cx = left ? a.x + sw / 2 + 1 : a.x - sw / 2 + sw + hw + 1; out.push(`<text class="lb chg" x="${cx.toFixed(1)}" y="${(a.y - 4).toFixed(1)}" text-anchor="start">${t}</text>`); }
       });
       if (this.ghost) {
         const g = this.ghost; out.push(`<line class="ghost" x1="${g.s.x}" y1="${g.s.y}" x2="${g.e.x}" y2="${g.e.y}"/><circle class="ghost-at" cx="${g.e.x}" cy="${g.e.y}" r="5"/>`);
@@ -339,7 +344,7 @@
       items.sort((p, q) => p.z - q.z).forEach((it) => it.f());
       // étiquettes
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '600 12px ' + cssVar(this.host, '--font', 'sans-serif');
-      if (this.labels) m.atoms.forEach((a, i) => { const p = P[i]; ctx.lineWidth = 3; ctx.strokeStyle = cbg; ctx.strokeText(a.el, p.x, p.y); ctx.fillStyle = ink; ctx.fillText(a.el, p.x, p.y); });
+      if (this.labels) m.atoms.forEach((a, i) => { const p = P[i]; ctx.lineWidth = 3; ctx.strokeStyle = cbg; const t = a.el + (a.chg ? C.chargeTxt(a.chg) : ''); ctx.strokeText(t, p.x, p.y); ctx.fillStyle = ink; ctx.fillText(t, p.x, p.y); });
       // sélection et mesures
       const selAll = this.inspect >= 0 ? [this.inspect] : this.sel;
       selAll.forEach((i, n) => {
@@ -397,7 +402,7 @@
       let html = '';
       if (this.inspect >= 0 && m.atoms[this.inspect]) {
         const i = this.inspect, a = m.atoms[i], v = C.vsepr(m, adj, i), nb = adj[i];
-        html += `<h4>Atome ${esc(a.el)} — ${esc((C.EL[a.el] || {}).n || '')}</h4><dl class="kv">`;
+        html += `<h4>Atome ${esc(a.el)}${a.chg ? '<sup>' + C.chargeTxt(a.chg) + '</sup>' : ''} — ${esc((C.EL[a.el] || {}).n || '')}</h4><dl class="kv">`;
         html += `<dt>Voisins liés</dt><dd>${nb.length ? nb.map((x) => esc(m.atoms[x.j].el) + (x.o > 1 ? (x.o === 2 ? ' (double)' : x.o === 3 ? ' (triple)' : ' (arom.)') : '')).join(', ') : 'aucun'}</dd>`;
         if (a.el !== 'H') html += `<dt>Doublets non liants</dt><dd>${v.E}</dd><dt>Notation VSEPR</dt><dd>${v.code.replace(/(\d)/g, '<sub>$1</sub>')}</dd><dt>Géométrie</dt><dd>${esc(v.geo)}</dd>`;
         if (v.ideal && nb.length >= 2) html += `<dt>Angle idéal</dt><dd>≈ ${C.fr(v.ideal, 1)}°</dd>`;

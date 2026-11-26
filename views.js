@@ -78,36 +78,50 @@ ${badge(470, 33, 1)}${badge(570, 56, 2)}${badge(222, 88, 3)}${badge(222, 238, 4)
   A.route(/^accueil$/, () => {
     const u = A.me();
     const mods = K.modules.map((m) => `<a class="card mod" href="#${u ? 'module-' + m.id : 'connexion'}"><span class="code">Module ${m.id}</span><h3>${esc(m.title)}</h3><p>${esc(m.desc)}</p><div class="foot"><span>${m.lessons.length} leçon${m.lessons.length > 1 ? 's' : ''}${m.quiz.length ? ' · test de ' + m.quiz.length + ' questions' : ' · 8 TP'}</span></div></a>`).join('');
+    const adm = A.admins().filter((a) => a.active !== false && !/^administrateur/i.test(a.name));
     return {
       title: 'Accueil', html: `
-<section class="hero"><div class="hero-in"><div>
-<span class="badge" style="background:rgba(255,255,255,.14);color:#fff;border-color:transparent">Informatique appliquée à la chimie</span>
+<section class="hero hero-home"><div class="hero-deco" aria-hidden="true"><span></span><span></span><span></span></div><div class="hero-in">
+<div class="hero-txt">
+<span class="badge hero-badge"><img src="img/logo-universite-kindia.png" alt="" width="22" height="22"> Université de Kindia · Département de Chimie</span>
 <h1 style="margin-top:14px">INFOCHIMIE UK</h1>
-<p class="lead"><b>Cours : ChemSketch et Avogadro, dessiner les structures 2D et 3D.</b> Apprenez à dessiner les molécules, à les construire en trois dimensions et à comprendre leur géométrie : cours illustrés, ateliers interactifs, travaux pratiques avec dépôt et évaluations corrigées.</p>
+<p class="lead"><b>Cours : ChemSketch et Avogadro, dessiner les structures 2D et 3D.</b> Apprenez à dessiner les molécules, à les construire en trois dimensions et à comprendre leur géométrie : cours illustrés, ateliers interactifs, recherche de n’importe quel composé, travaux pratiques avec dépôt et évaluations corrigées.</p>
 <div class="row">${u ? '<a class="btn pri" href="#tableau">Accéder à mon espace</a>' : '<a class="btn pri" href="#inscription">Créer un compte étudiant</a><a class="btn" href="#connexion">Se connecter</a>'}</div>
 <div class="hero-stats"><div><b>${K.modules.length}</b><span>modules</span></div><div><b>${nLessons()}</b><span>leçons</span></div><div><b>${K.tps.length}</b><span>travaux pratiques</span></div><div><b>${nQuestions()}</b><span>questions d’évaluation</span></div></div>
 <p class="hero-credit">Développée par <b>M. Alhouseny CISSE</b> et son assistant <b>Sory BAGAYOKO</b></p>
 </div>
+${A.vitHero()}
+</div></section>
+${A.vitHommage()}
+<section class="band"><div class="band-in"><h2>Un parcours en sept modules</h2><p class="muted" style="max-width:70ch">Des notions de base à la modélisation 3D, chaque module associe une leçon, des démonstrations interactives et un test corrigé.</p><div class="path">${mods}</div></div></section>
+${A.vitCatalogueBand()}
+<section class="band"><div class="band-in demo3d">
+<div><span class="hm-kick">${I('cube', 18)} Essayez maintenant</span><h2 style="margin:6px 0 10px">Une molécule en 3D, comme dans Avogadro</h2><p class="muted">Faites tourner le modèle, changez de molécule et observez la géométrie : angles, longueurs de liaison, doublets. Dans les ateliers, recherchez n’importe quel composé par son nom, sa formule ou son SMILES, puis dessinez-le ou visualisez-le en 3D.</p>
+<div class="grid g2" style="margin-top:14px">
+<div class="feat"><span class="ic">${I('hex', 22)}</span><div><h3 style="margin-top:0">Atelier 2D</h3><p>Atomes de tout le tableau périodique, charges, liaisons et cycles comme dans ChemSketch. Formule brute, masse molaire, SMILES et reconnaissance calculés en direct.</p></div></div>
+<div class="feat"><span class="ic">${I('cube', 22)}</span><div><h3 style="margin-top:0">Atelier 3D</h3><p>Construisez, faites tourner et mesurez : distances, angles, notation VSEPR, optimisation de la géométrie animée.</p></div></div>
+</div></div>
 <div class="hero-model"><div class="v3d-host" id="hero-v"></div>
 <div class="seg" id="hero-seg">${[['aspirine', 'Aspirine'], ['ethanol', 'Éthanol'], ['methane', 'Méthane'], ['eau', 'Eau']].map(([k, t], i) => `<button data-k="${k}" class="${i ? '' : 'on'}">${t}</button>`).join('')}</div>
 <div class="cap"><span id="hero-name"></span><span>Glissez pour faire tourner le modèle</span></div></div>
 </div></section>
-<section class="band"><div class="band-in"><h2>Un parcours en sept modules</h2><p class="muted" style="max-width:70ch">Des notions de base à la modélisation 3D, chaque module associe une leçon, des démonstrations interactives et un test corrigé.</p><div class="path">${mods}</div></div></section>
 <section class="band alt"><div class="band-in"><h2>Trois espaces, un même parcours</h2><div class="grid g3 spaces">
-<div class="card"><h3>${I('user')} Espace étudiant</h3><ul><li>Cours, vidéos et supports téléchargeables</li><li>Ateliers 2D et 3D, exercices corrigés automatiquement</li><li>Dépôt des TP, notes, corrections et progression</li></ul></div>
+<div class="card"><h3>${I('user')} Espace étudiant</h3><ul><li>Connexion avec le matricule et un mot de passe personnel</li><li>Cours, vidéos, ateliers 2D et 3D, exercices corrigés</li><li>Dépôt des TP, notes, corrections et progression</li></ul></div>
 <div class="card"><h3>${I('book')} Espace enseignant</h3><ul><li>Chapitres, documents PDF et vidéos</li><li>Questionnaires et exercices</li><li>Correction des travaux, suivi individuel et collectif</li></ul></div>
-<div class="card"><h3>${I('shield')} Espace administrateur</h3><ul><li>Utilisateurs, rôles et autorisations</li><li>Modules, évaluations, statistiques</li><li>Journal des opérations et sauvegarde</li></ul></div>
+<div class="card"><h3>${I('shield')} Espace administrateur</h3><ul><li>Connexion par code identifiant personnel</li><li>Contrôle de l’évolution de chaque étudiant et notes d’évolution</li><li>Comptes administrateurs créés par l’administrateur principal</li></ul></div>
 </div></div></section>
 <section class="band"><div class="band-in grid g2">
-<div class="feat"><span class="ic">${I('hex', 22)}</span><div><h3 style="margin-top:0">Atelier 2D</h3><p>Dessinez atomes, liaisons et cycles comme dans ChemSketch. Formule brute, masse molaire, SMILES et reconnaissance de la molécule sont calculés en direct ; un atome qui dépasse sa valence est signalé.</p></div></div>
-<div class="feat"><span class="ic">${I('cube', 22)}</span><div><h3 style="margin-top:0">Atelier 3D</h3><p>Construisez, faites tourner et mesurez comme dans Avogadro : distances, angles, notation VSEPR de chaque atome, optimisation de la géométrie animée.</p></div></div>
+<div class="feat"><span class="ic">${I('search', 22)}</span><div><h3 style="margin-top:0">Recherche de composés</h3><p>Plus de 130 composés intégrés utilisables sans Internet, et la recherche en ligne dans PubChem (plus de 100 millions de composés) par nom français ou anglais, formule, SMILES ou numéro CID.</p></div></div>
 <div class="feat"><span class="ic">${I('flask', 22)}</span><div><h3 style="margin-top:0">Travaux pratiques</h3><p>Huit fiches guidées, de la molécule d’eau au mini-projet, avec dépôt des fichiers .sk2, .mol, .xyz ou images et correction notée.</p></div></div>
-<div class="feat"><span class="ic">${I('down', 22)}</span><div><h3 style="margin-top:0">PDF et images</h3><p>Chaque leçon, module, fiche de TP et guide se télécharge en PDF, imprimable et lisible sans Internet. Les composés s’exportent en image (PNG, SVG) et en .mol ou .xyz pour les vrais logiciels.</p></div></div>
+<div class="feat"><span class="ic">${I('clip', 22)}</span><div><h3 style="margin-top:0">Évaluations</h3><p>Tests de module et examen final corrigés automatiquement, avec explications, historique des tentatives et notes d’évolution attribuées par l’administration.</p></div></div>
+<div class="feat"><span class="ic">${I('down', 22)}</span><div><h3 style="margin-top:0">PDF et images</h3><p>Chaque leçon, module, fiche de TP et guide se télécharge en PDF. Les composés s’exportent en image (PNG, SVG) et en .mol ou .xyz pour les vrais logiciels.</p></div></div>
 </div></section>
-<section class="band alt"><div class="band-in"><h2>Administration de la plateforme</h2><p class="muted" style="max-width:70ch">Les administrateurs gèrent les comptes, contrôlent l’évolution de chaque étudiant et attribuent les notes d’évolution.</p>
-<div class="grid g3">${A.admins().filter((a) => a.active !== false).map((a) => `<div class="card row" style="flex-wrap:nowrap;gap:14px"><span class="avatar" style="width:52px;height:52px;font-size:18px">${esc(A.initials(a.name))}</span><div><h3 style="margin:0;font-size:18px">${esc(a.name)}</h3><span class="muted small">${esc(a.titre || 'Administrateur')}</span></div></div>`).join('')}</div></div></section>
-<footer class="footer"><div class="band-in" style="max-width:1240px;margin:0 auto">Les comptes et les résultats sont enregistrés dans le navigateur de l’ordinateur qui héberge la plateforme. ChemSketch est un logiciel d’ACD/Labs ; Avogadro est un projet libre. Cette plateforme n’est affiliée à aucun des deux éditeurs.</div></footer>`,
+${A.vitCampus()}
+${adm.length ? `<section class="band alt"><div class="band-in"><h2>Administration de la plateforme</h2><p class="muted" style="max-width:70ch">Les administrateurs gèrent les comptes, contrôlent l’évolution de chaque étudiant et attribuent les notes d’évolution.</p>
+<div class="grid g3">${adm.map((a) => `<div class="card row" style="flex-wrap:nowrap;gap:14px"><span class="avatar" style="width:52px;height:52px;font-size:18px">${esc(A.initials(a.name))}</span><div><h3 style="margin:0;font-size:18px">${esc(a.name)}</h3><span class="muted small">${esc(A.adminTitle(a))}</span></div></div>`).join('')}</div></div></section>` : ''}
+<footer class="footer"><div class="band-in" style="max-width:1240px;margin:0 auto">INFOCHIMIE UK — Université de Kindia, Département de Chimie. ChemSketch est un logiciel d’ACD/Labs ; Avogadro est un projet libre ; les données en ligne des composés proviennent de PubChem (NCBI). Cette plateforme n’est affiliée à aucun de ces éditeurs.</div></footer>`,
       mount() {
+        A.vitMountHero();
         const host = document.getElementById('hero-v'); const name = document.getElementById('hero-name');
         const v = new G.Viewer3D(host, { spin: true, noWheel: true, label: 'Modèle moléculaire en rotation' }); A.live.push(v);
         const load = (k) => { const m = C.REF3D[k] ? C.REF3D[k]() : C.build3D(C.lib2D(k)); v.setMolecule(m); name.innerHTML = esc(C.LIB2D[k] ? C.LIB2D[k].n : k) + ' — ' + C.formulaHTML(C.counts(m, false)); };
@@ -122,6 +136,7 @@ ${badge(470, 33, 1)}${badge(570, 56, 2)}${badge(222, 88, 3)}${badge(222, 238, 4)
   const demoBtn = (u, sub) => `<button class="btn" data-act="demoLogin" data-id="${u.id}">${I(u.role === 'admin' ? 'shield' : u.role === 'enseignant' ? 'book' : 'user')} <span>${esc(u.name)}<small>${esc(sub)}</small></span></button>`;
   A.route(/^connexion$/, () => {
     const tab = A.loginTab === 'enseignant' ? 'enseignant' : 'etudiant', etu = tab === 'etudiant';
+    const dStu = A.DB.users.find((u) => u.id === 'u-etu' && u.demo), dEns = A.DB.users.find((u) => u.id === 'u-ens' && u.demo);
     return {
       title: 'Connexion', html: `<div class="auth"><div class="card formcard" style="width:100%">
 <h1 style="font-size:28px">Connexion</h1><p class="muted">Accédez à vos cours, travaux pratiques et résultats.</p>
@@ -131,6 +146,7 @@ ${badge(470, 33, 1)}${badge(570, 56, 2)}${badge(222, 88, 3)}${badge(222, 238, 4)
 <div class="field"><label for="lg-p">Mot de passe</label><input id="lg-p" name="pw" type="password" autocomplete="current-password" required></div>
 <div id="lg-err" aria-live="polite"></div><button class="btn pri" style="width:100%">Se connecter</button></form>
 <p class="small" style="margin-top:12px"><a href="#mot-de-passe">Mot de passe oublié ?</a>${etu ? ' · <a href="#inscription">Créer un compte étudiant</a>' : ''}</p>
+${(etu ? dStu : dEns) ? `<hr><h4>Compte de démonstration</h4><div class="demo-acc">${etu ? demoBtn(dStu, 'Matricule ' + dStu.matricule) : demoBtn(dEns, dEns.email)}</div><p class="muted small" style="margin-top:8px">Mot de passe des comptes de démonstration : <b>${esc(A.DEMO_PW)}</b></p>` : ''}
 <hr><p class="small" style="margin:0">Vous êtes administrateur ? <a href="#connexion-admin">Accéder à l’espace administrateur</a></p></div></div>`
     };
   }, { public: true, guest: true });
@@ -143,16 +159,17 @@ ${badge(470, 33, 1)}${badge(570, 56, 2)}${badge(222, 88, 3)}${badge(222, 238, 4)
 <div class="admin-badge">${I('shield', 26)}</div><h1 style="font-size:28px">Espace administrateur</h1>
 <p class="muted">Accès réservé aux administrateurs de la plateforme. Connectez-vous avec votre <b>code identifiant personnel</b>.</p>
 <form data-form="login" data-kind="admin" novalidate>
-<div class="field"><label for="la-i">Code identifiant</label><input id="la-i" name="idf" type="text" autocomplete="username" placeholder="Exemple : ADM-001" style="text-transform:uppercase" required></div>
+<div class="field"><label for="la-i">Code identifiant</label><input id="la-i" name="idf" type="text" autocomplete="username" placeholder="Exemple : BAGLAM-002" style="text-transform:uppercase" required></div>
 <div class="field"><label for="la-p">Mot de passe</label><input id="la-p" name="pw" type="password" autocomplete="current-password" required></div>
 <div id="lg-err" aria-live="polite"></div><button class="btn pri" style="width:100%">${I('shield', 18)} Entrer dans l’espace administrateur</button></form>
 <p class="small muted" style="margin-top:12px">Après 5 tentatives incorrectes, l’accès est bloqué pendant une minute.</p>
+<p class="small muted">Les codes identifiants (BAGLAM-…) sont attribués par l’administrateur principal.</p>
 <p class="small" style="margin-top:12px"><a href="#connexion">Retour à la connexion étudiants et enseignants</a></p></div></div>`
     };
   }, { public: true, guest: true });
 
   const afterLogin = (u) => { const t = A.after; A.after = null; A.go(t && !/^(connexion|connexion-admin|inscription|mot-de-passe|accueil)$/.test(t) ? t : (u.role === 'admin' ? 'controle' : 'tableau')); };
-  A.act.demoLogin = (el) => { const u = A.DB.users.find((x) => x.id === el.dataset.id); if (!u) { A.toast('Compte introuvable.'); return; } if (u.active === false) { A.toast('Ce compte est désactivé.'); return; } A.login(u); afterLogin(u); };
+  A.act.demoLogin = (el) => { const u = A.DB.users.find((x) => x.id === el.dataset.id && x.demo && x.role !== 'admin'); if (!u) { A.toast('Compte introuvable.'); return; } if (u.active === false) { A.toast('Ce compte est désactivé.'); return; } A.login(u); afterLogin(u); };
   const fails = {};
   A.form.login = async (f, d) => {
     const kind = f.dataset.kind, idf = String(d.get('idf') || '').trim(), pw = String(d.get('pw') || ''), err = (m) => { f.querySelector('#lg-err').innerHTML = `<div class="alert bad">${m}</div>`; };
@@ -446,19 +463,21 @@ ${K.modules.filter((m) => A.quizOf(m.id).length && A.modVisible(m.id)).map((m) =
   // barre d'outils de l'éditeur 2D (partagée atelier / exercices)
   const tb2 = () => `<div class="toolbar" id="tb2" role="toolbar" aria-label="Outils de dessin 2D">
 <div class="seg" role="group" aria-label="Outil">${[['dessiner', 'Dessiner'], ['cycle', 'Cycle'], ['deplacer', 'Déplacer'], ['gomme', 'Gomme']].map(([k, t]) => `<button data-tool="${k}" class="${k === 'dessiner' ? 'on' : ''}">${t}</button>`).join('')}</div>
-<div class="seg els" role="group" aria-label="Élément">${ELS.map((e) => `<button data-el="${e}" class="e-${e}${e === 'C' ? ' on' : ''}" title="${esc(C.EL[e].n)}">${e}</button>`).join('')}</div>
+<div class="seg els" role="group" aria-label="Élément">${ELS.map((e) => `<button data-el="${e}" class="e-${e}${e === 'C' ? ' on' : ''}" title="${esc(C.EL[e].n)}">${e}</button>`).join('')}<button data-el="" class="el-extra" hidden></button><button data-ed="ptable" title="Tableau périodique : tous les éléments" aria-label="Ouvrir le tableau périodique">${I('grid', 16)}</button></div>
+<div class="seg" role="group" aria-label="Charge"><button data-tool="charge" data-sign="1" title="Charge positive : cliquez sur un atome (touche +)" aria-label="Ajouter une charge positive">⊕</button><button data-tool="charge" data-sign="-1" title="Charge négative : cliquez sur un atome (touche −)" aria-label="Ajouter une charge négative">⊖</button></div>
 <div class="seg" role="group" aria-label="Ordre de liaison">${[1, 2, 3].map((o) => `<button data-order="${o}" class="${o === 1 ? 'on' : ''}" title="Liaison ${['simple', 'double', 'triple'][o - 1]}" aria-label="Liaison ${['simple', 'double', 'triple'][o - 1]}"><svg width="22" height="14" viewBox="0 0 22 14" aria-hidden="true">${o === 1 ? '<line x1="2" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="2"/>' : o === 2 ? '<line x1="2" y1="4" x2="20" y2="4" stroke="currentColor" stroke-width="2"/><line x1="2" y1="10" x2="20" y2="10" stroke="currentColor" stroke-width="2"/>' : '<line x1="2" y1="2" x2="20" y2="2" stroke="currentColor" stroke-width="2"/><line x1="2" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="2"/><line x1="2" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="2"/>'}</svg></button>`).join('')}</div>
 <select id="ring2" aria-label="Type de cycle"><option value="6a">Benzène</option><option value="6">Cyclohexane</option><option value="5">Cyclopentane</option><option value="4">Cyclobutane</option><option value="3">Cyclopropane</option></select>
 <div class="seg" role="group" aria-label="Affichage">${[['semi', 'Semi-dév.'], ['dev', 'Développée'], ['topo', 'Topologique']].map(([k, t]) => `<button data-disp="${k}" class="${k === 'semi' ? 'on' : ''}">${t}</button>`).join('')}</div>
 <span class="tb-sep"></span>
 <button class="iconbtn" data-ed="undo" title="Annuler (Ctrl+Z)" aria-label="Annuler">${I('undo')}</button><button class="iconbtn" data-ed="redo" title="Rétablir" aria-label="Rétablir">${I('redo')}</button><button class="iconbtn" data-ed="fit" title="Ajuster la vue" aria-label="Ajuster la vue">${I('fit')}</button><button class="iconbtn" data-ed="zin" aria-label="Zoom avant">${I('zin')}</button><button class="iconbtn" data-ed="zout" aria-label="Zoom arrière">${I('zout')}</button><button class="iconbtn" data-ed="clear" title="Tout effacer" aria-label="Tout effacer">${I('trash')}</button></div>`;
   const bindTb2 = (ed, tb) => {
-    const sync = () => { A.$$('[data-tool]', tb).forEach((b) => b.classList.toggle('on', b.dataset.tool === ed.tool)); A.$$('[data-el]', tb).forEach((b) => b.classList.toggle('on', b.dataset.el === ed.el)); A.$$('[data-order]', tb).forEach((b) => b.classList.toggle('on', +b.dataset.order === ed.order)); A.$$('[data-disp]', tb).forEach((b) => b.classList.toggle('on', b.dataset.disp === ed.display)); };
+    const sync = () => { A.$$('[data-tool]', tb).forEach((b) => b.classList.toggle('on', b.dataset.tool === ed.tool && (b.dataset.sign == null || +b.dataset.sign === (ed.chgSign || 1)))); A.$$('[data-el]', tb).forEach((b) => b.classList.toggle('on', b.dataset.el === ed.el)); A.$$('[data-order]', tb).forEach((b) => b.classList.toggle('on', +b.dataset.order === ed.order)); A.$$('[data-disp]', tb).forEach((b) => b.classList.toggle('on', b.dataset.disp === ed.display)); };
     ed.onSettings = sync;
     tb.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.tool) ed.tool = b.dataset.tool;
+      if (b.dataset.tool) { ed.tool = b.dataset.tool; if (b.dataset.sign) ed.chgSign = +b.dataset.sign; }
       if (b.dataset.el) { ed.el = b.dataset.el; if (ed.tool !== 'dessiner') ed.tool = 'dessiner'; }
+      if (b.dataset.ed === 'ptable') { A.periodicPicker(ed.el, (sym) => { ed.el = sym; ed.tool = 'dessiner'; A.showExtraEl(tb, sym, 'el'); sync(); ed.svg.focus({ preventScroll: true }); }); return; }
       if (b.dataset.order) { ed.order = +b.dataset.order; if (ed.tool !== 'dessiner') ed.tool = 'dessiner'; }
       if (b.dataset.disp) { ed.display = b.dataset.disp; ed.render(); }
       const a = b.dataset.ed; if (a === 'undo') ed.undo(); if (a === 'redo') ed.redo(); if (a === 'fit') ed.fit(); if (a === 'zin') ed.setZoom(ed.zoom * 1.2); if (a === 'zout') ed.setZoom(ed.zoom / 1.2); if (a === 'clear') ed.clear();
@@ -564,8 +583,8 @@ ${!canDep && A.can('travaux.corriger') ? '<a class="btn sm" href="#corrections">
     A.DB.users.filter((x) => x.role === 'enseignant').forEach((t) => A.notify(t.id, 'Nouveau dépôt : ' + u.name + ' — TP ' + tp + '.', 'corrections'));
     A.log('Dépôt de travail', 'TP ' + tp); A.save(); A.toast('Travail déposé. Votre enseignant a été notifié.'); A.render();
   };
-  A.mol2DtoA = (m, L = 48) => ({ name: m.name, atoms: m.atoms.map((a) => ({ el: a.el, x: a.x / L * 1.45, y: -a.y / L * 1.45, z: 0 })), bonds: m.bonds });
-  A.molAto2D = (m, L = 48) => ({ name: m.name, atoms: m.atoms.map((a) => ({ el: a.el, x: a.x * L / 1.45, y: -a.y * L / 1.45 })), bonds: m.bonds });
+  A.mol2DtoA = (m, L = 48) => ({ name: m.name, atoms: m.atoms.map((a) => ({ el: a.el, x: a.x / L * 1.45, y: -a.y / L * 1.45, z: 0, ...C.extra(a) })), bonds: m.bonds });
+  A.molAto2D = (m, L = 48) => ({ name: m.name, atoms: m.atoms.map((a) => ({ el: a.el, x: a.x * L / 1.45, y: -a.y * L / 1.45, ...C.extra(a) })), bonds: m.bonds });
   // lecture d'un fichier moléculaire → { mol, flat }
   A.parseMolText = (name, text) => {
     const ext = (name.split('.').pop() || '').toLowerCase();
@@ -574,21 +593,24 @@ ${!canDep && A.can('travaux.corriger') ? '<a class="btn sm" href="#corrections">
     const flat = mol.atoms.every((a) => Math.abs(a.z || 0) < 1e-4);
     return { mol, flat };
   };
-  A.to3DViewable = (name, text) => { const { mol, flat } = A.parseMolText(name, text); return flat ? C.build3D(A.molAto2D(mol)) : mol; };
+  A.to3DViewable = (name, text) => { const { mol, flat } = A.parseMolText(name, text); return flat ? C.build3D(C.to2D(mol)) : mol; };
 
   // =========================================================== CRÉATION RAPIDE DE COMPOSÉS
   const QUICK = ['eau', 'methane', 'ethanol', 'acetique', 'acetone', 'benzene', 'glucose', 'cafeine', 'aspirine', 'uree'];
   const composerHTML = (into) => `<div class="composer card"><form data-form="compose" data-into="${into}" class="cmp-row" autocomplete="off" novalidate>
-<label for="cmp-q" class="cmp-l">${I('pencil', 18)} Écrire un composé</label>
-<input id="cmp-q" name="q" type="text" spellcheck="false" placeholder="Nom, formule ou SMILES : propan-2-ol · CH3-CO-CH3 · C2H6O · CCO">
-<button class="btn pri">Créer</button><button type="button" class="btn" data-act="openLib" data-into="${into}">${I('lib', 18)} Composés standard</button></form>
+<label for="cmp-q" class="cmp-l">${I('search', 18)} Rechercher ou écrire un composé</label>
+<input id="cmp-q" name="q" type="text" spellcheck="false" list="cmp-dl" placeholder="N’importe quel composé : aspirine, sulfate de cuivre, C6H12O6, CCO, caffeine, 2244…">
+<datalist id="cmp-dl"></datalist>
+<button class="btn pri">Créer</button><button type="button" class="btn" data-act="pcSearch" data-into="${into}" title="Rechercher dans PubChem (plus de 100 millions de composés)">${I('search', 18)} En ligne</button><button type="button" class="btn" data-act="openLib" data-into="${into}">${I('lib', 18)} Composés standard</button></form>
 <div class="cmp-quick" role="group" aria-label="Composés courants"><span class="muted small">Rapide :</span>${QUICK.map((id) => `<button type="button" class="chip" data-act="pickMol" data-id="${id}" data-into="${into}">${esc(G.Compose.byId[id].n.replace(/ \(.*\)$/, ''))}</button>`).join('')}</div>
 <details class="cmp-help"><summary>Que puis-je écrire ?</summary><ul>
-<li><b>Un nom</b> (nomenclature) : éthanol, propan-2-ol, but-2-ène, acide propanoïque, 2-méthylpropane, éthanoate d’éthyle, cyclohexanol, 1,2-dichloroéthane…</li>
-<li><b>Une formule semi-développée</b> : CH3-CH2-OH, CH3-CO-CH3, CH2=CH-CH3, HC≡CH, (CH3)3C-OH, C6H5-COOH. « = » marque une double liaison, « ≡ » ou « # » une triple liaison ; les parenthèses indiquent une ramification.</li>
-<li><b>Une formule brute</b> : C2H6O, C4H10… la plateforme propose les isomères connus.</li>
-<li><b>Un SMILES</b> : CCO, CC(=O)O, c1ccccc1 (cycle aromatique en minuscules).</li></ul></details>
-<div id="cmp-msg" aria-live="polite"></div></div>`;
+<li><b>N’importe quel nom</b>, en français ou en anglais : sulfate de cuivre, chlorure de sodium, acide citrique, caféine, cholestérol, chlorophylle, testostérone… Si le composé n’est pas dans la bibliothèque intégrée, il est recherché automatiquement dans <b>PubChem</b> (base mondiale de plus de 100 millions de composés, connexion Internet nécessaire).</li>
+<li><b>Un nom en nomenclature</b> : éthanol, propan-2-ol, but-2-ène, acide propanoïque, 2-méthylpropane, éthanoate d’éthyle…</li>
+<li><b>Une formule semi-développée</b> : CH3-CH2-OH, CH3-CO-CH3, CH2=CH-CH3, (CH3)3C-OH. « = » double liaison, « ≡ » ou « # » triple liaison.</li>
+<li><b>Une formule brute</b> : C2H6O, C6H12O6… les isomères connus sont proposés (bibliothèque puis PubChem).</li>
+<li><b>Un SMILES</b>, ions compris : CCO, c1ccccc1, [Na+].[Cl-], CC(=O)[O-] ; <b>un numéro CID</b> PubChem (2244) ou <b>CAS</b> (50-78-2).</li>
+<li>Dans l’éditeur : le bouton ${I('grid', 14)} ouvre le <b>tableau périodique complet</b> ; ⊕ et ⊖ ajoutent une charge à un atome.</li></ul></details>
+<div id="cmp-msg" aria-live="polite"></div><div id="cmp-res"></div></div>`;
   const cmpSay = (html, cls) => { const el = document.getElementById('cmp-msg'); if (el) el.innerHTML = html ? `<div class="alert ${cls || 'info'}" style="margin:10px 0 0">${html}</div>` : ''; };
   // charge une molécule 2D (coordonnées de l'éditeur) dans l'atelier voulu ; sans atelier ouvert : atelier 2D
   A.loadComposed = (mol, into, entry) => {
@@ -602,12 +624,102 @@ ${!canDep && A.can('travaux.corriger') ? '<a class="btn sm" href="#corrections">
     A.pending2D = mol; A.go('atelier-2d'); return '';
   };
   A.form.compose = (f, d) => {
-    const into = f.dataset.into, q = String(d.get('q') || '').trim();
+    const into = f.dataset.into, q = String(d.get('q') || '').trim(); A.pcRes('');
+    if (!q) { cmpSay('Écrivez un nom, une formule, un SMILES ou un numéro CID.', 'bad'); return; }
     let r; try { r = G.Compose.fromText(q); } catch (e) { console.error(e); r = { ok: false, msg: 'Ce composé n’a pas pu être construit.' }; }
-    if (r.choices) { cmpSay(esc(r.msg) + `<div class="row" style="gap:6px;margin-top:8px">${r.choices.map((e) => `<button type="button" class="chip" data-act="pickMol" data-id="${e.id}" data-into="${into}">${esc(e.n)}</button>`).join('')}</div>`, 'info'); return; }
-    if (!r.ok) { cmpSay(esc(r.msg), 'bad'); return; }
+    const online = `<button type="button" class="btn sm" data-act="pcSearch" data-into="${into}" data-q="${esc(q)}">${I('search', 16)} Chercher aussi dans PubChem</button>`;
+    if (r.choices) { cmpSay(esc(r.msg) + `<div class="row" style="gap:6px;margin-top:8px">${r.choices.map((e) => `<button type="button" class="chip" data-act="pickMol" data-id="${e.id}" data-into="${into}">${esc(e.n)}</button>`).join('')}${online}</div>`, 'info'); return; }
+    if (!r.ok) { A.pcSearch(q, into, esc(r.msg)); return; }
     const note = A.loadComposed(r.mol, into, r.entry);
-    cmpSay(`<b>${esc(r.mol.name || q)}</b> — ${C.formulaHTML(C.counts(r.mol))}. ${esc(r.how)}${note ? ' En 3D : ' + esc(note) + '.' : ''}`, r.warn ? 'bad' : 'ok');
+    cmpSay(`<b>${esc(r.mol.name || q)}</b> — ${C.formulaHTML(C.counts(r.mol))}. ${esc(r.how)}${note ? ' En 3D : ' + esc(note) + '.' : ''}<div style="margin-top:6px">${online}</div>`, r.warn ? 'bad' : 'ok');
+  };
+  // ---------- recherche dans PubChem ----------
+  A.pcRes = (h) => { const el = document.getElementById('cmp-res'); if (el) el.innerHTML = h; };
+  const pcFormula = (f) => esc(String(f || '')).replace(/(\d+)/g, '<sub>$1</sub>').replace(/([+-])$/, '<sup>$1</sup>');
+  const pcCard = (p, into) => `<button type="button" class="pc-card" data-act="pcPick" data-cid="${p.CID}" data-into="${into}" data-t="${esc(p.Title || p.IUPACName || 'CID ' + p.CID)}"><img src="${G.PubChem.image(p.CID)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'"><b>${esc(p.Title || p.IUPACName || 'CID ' + p.CID)}</b><span class="small muted">${pcFormula(p.MolecularFormula)} · ${C.fr(+p.MolecularWeight || 0, 2)} g/mol</span><span class="small muted">CID ${p.CID}</span></button>`;
+  A.pcSearch = async (q, into, why) => {
+    if (!G.PubChem) return;
+    const tok = (A.pcTok = (A.pcTok || 0) + 1);
+    cmpSay(`${why ? why + '<br>' : ''}<span class="spin-i">${I('spin', 16)}</span> Recherche de « ${esc(q)} » dans PubChem…`, 'info'); A.pcRes('');
+    try {
+      const r = await G.PubChem.search(q); if (tok !== A.pcTok) return;
+      if (!r.cids.length) { cmpSay(`Aucun composé trouvé pour « ${esc(q)} », ni dans la bibliothèque, ni dans PubChem${r.tried && r.tried.length ? ' (essais : ' + r.tried.map(esc).join(', ') + ')' : ''}. Essayez le nom anglais, la formule brute (C9H8O4), le SMILES ou le numéro CID.`, 'bad'); return; }
+      const P = await G.PubChem.props(r.cids); if (tok !== A.pcTok) return;
+      if (!P.length) { cmpSay('PubChem n’a pas renvoyé de fiche pour cette recherche.', 'bad'); return; }
+      if (P.length === 1 || (r.how !== 'formule brute' && r.how !== 'numéro CAS')) {
+        await A.pcLoad(P[0].CID, into, P[0], q);
+        if (P.length > 1) A.pcRes(`<p class="small muted" style="margin:10px 0 6px">Autres résultats PubChem pour « ${esc(r.term)} » :</p><div class="pc-grid">${P.slice(1, 9).map((p) => pcCard(p, into)).join('')}</div>`);
+        return;
+      }
+      cmpSay(`${P.length} composé${P.length > 1 ? 's' : ''} trouvé${P.length > 1 ? 's' : ''} dans PubChem (${esc(r.how)} : ${esc(r.term)}). Cliquez sur un composé pour l’ouvrir.`, 'info');
+      A.pcRes(`<div class="pc-grid">${P.map((p) => pcCard(p, into)).join('')}</div>`);
+    } catch (e) { if (tok === A.pcTok) cmpSay(esc(e.message || 'Recherche impossible.'), 'bad'); }
+  };
+  A.act.pcSearch = (el) => { const q = el.dataset.q || (document.getElementById('cmp-q') || {}).value || ''; if (!q.trim()) { cmpSay('Écrivez d’abord le nom, la formule, le SMILES ou le numéro CID du composé.', 'bad'); return; } A.pcSearch(q.trim(), el.dataset.into); };
+  A.act.pcPick = async (el) => { const t = el.dataset.t; cmpSay(`<span class="spin-i">${I('spin', 16)}</span> Chargement de ${esc(t)}…`, 'info'); try { await A.pcLoad(+el.dataset.cid, el.dataset.into, { Title: t, CID: +el.dataset.cid }); } catch (e) { cmpSay(esc(e.message), 'bad'); } };
+  // ouverture d'un composé PubChem : coordonnées 2D dans l'éditeur, conformère 3D dans la visionneuse
+  A.pcLoad = async (cid, into, p, q) => {
+    const title = (p && (p.Title || p.IUPACName)) || 'CID ' + cid;
+    const link = `<a href="${G.PubChem.page(cid)}" target="_blank" rel="noopener">fiche PubChem</a>`;
+    const head = `<b>${esc(title)}</b>${q && C && G.PubChem && q.toLowerCase() !== String(title).toLowerCase() ? ' <span class="muted">(« ' + esc(q) + ' »)</span>' : ''} — CID ${cid}${p && p.MolecularFormula ? ' · ' + pcFormula(p.MolecularFormula) : ''}${p && p.MolecularWeight ? ' · ' + C.fr(+p.MolecularWeight, 2) + ' g/mol' : ''}. `;
+    if (into === '3d' && A.cur3D) {
+      let t3 = null; try { t3 = await G.PubChem.sdf(cid, '3d'); } catch (e) { if (e.net) throw e; }
+      let m3, note;
+      if (t3) { m3 = C.parseMolfile(t3); note = 'Conformère 3D calculé par PubChem.'; }
+      else {
+        const t2 = await G.PubChem.sdf(cid, '2d'); if (!t2) throw new Error('Structure introuvable dans PubChem.');
+        const m2 = C.to2D(C.parseMolfile(t2)), n = m2.atoms.length;
+        cmpSay(head + `<span class="spin-i">${I('spin', 16)}</span> Construction de la géométrie 3D…`, 'info'); await new Promise((r) => setTimeout(r, 30));
+        m3 = C.build3D(m2, { steps: n > 70 ? 60 : n > 35 ? 220 : 700 }); note = 'PubChem ne fournit pas de conformère 3D pour ce composé : hydrogènes ajoutés et géométrie optimisée par le champ de force simplifié de la plateforme.';
+      }
+      m3.name = title; A.cur3D.setMolecule(m3); const nm = document.getElementById('v3-name'); if (nm) nm.value = title;
+      cmpSay(head + note + ' ' + link + '.', 'ok'); return;
+    }
+    const t = await G.PubChem.sdf(cid, '2d'); if (!t) throw new Error('Structure introuvable dans PubChem.');
+    const m = C.to2D(C.parseMolfile(t)); m.name = title;
+    const big = m.atoms.length > 12 || m.bonds.length >= m.atoms.length;
+    if (into === '2d' && A.cur2D) { if (big && A.cur2D.display === 'semi') { A.cur2D.display = 'topo'; A.cur2D.onSettings(); } A.cur2D.load(m); const nm = document.getElementById('ed-name'); if (nm) nm.value = title; }
+    else { A.pending2D = m; A.go('atelier-2d'); }
+    cmpSay(head + 'Structure 2D importée de PubChem : modifiez-la librement, puis « Voir en 3D ». ' + link + '.', 'ok');
+  };
+  // suggestions de noms pendant la saisie (bibliothèque + PubChem)
+  A.bindComposer = () => {
+    const qi = document.getElementById('cmp-q'), dl = document.getElementById('cmp-dl'); if (!qi || !dl) return;
+    let t = 0, last = '';
+    qi.addEventListener('input', () => {
+      clearTimeout(t); const v = qi.value.trim(); if (v.length < 3 || v === last) return;
+      t = setTimeout(async () => {
+        last = v; const loc = G.Compose.search(v).slice(0, 6).map((e) => e.n);
+        const on = /^[a-zà-ÿ' -]+$/i.test(v) && G.PubChem ? await G.PubChem.suggest(v) : [];
+        if (qi.value.trim() !== v) return;
+        dl.innerHTML = [...new Set(loc.concat(on))].slice(0, 12).map((x) => `<option value="${esc(x)}"></option>`).join('');
+      }, 320);
+    });
+  };
+  // ---------- tableau périodique (choix de n'importe quel élément) ----------
+  A.showExtraEl = (tb, sym, key) => {
+    const x = tb.querySelector('.el-extra'); if (!x) return;
+    if (ELS.includes(sym)) { x.hidden = true; return; }
+    x.dataset[key] = sym; x.textContent = sym; x.title = C.EL[sym].n; x.hidden = false;
+    x.style.color = ''; x.classList.add('on');
+  };
+  A.periodicPicker = (cur, pick) => {
+    const syms = C.SYMBOLS;
+    const cell = (z, col, row) => { const s = syms[z - 1], e = C.EL[s]; return `<button class="pt-el${s === cur ? ' on' : ''}${e.met ? ' met' : ''}" data-pt="${s}" title="${esc(e.n)} — Z = ${z} — ${C.fr(e.m, 3)} g/mol" style="grid-column:${col};grid-row:${row};--pc:${e.c}"><small>${z}</small><b>${s}</b><span>${esc(e.n)}</span></button>`; };
+    const fb = (z) => (z >= 57 && z <= 71) || (z >= 89 && z <= 103);
+    let grid = '';
+    syms.forEach((s, k) => { const z = k + 1, e = C.EL[s]; if (fb(z)) grid += cell(z, z - (z < 89 ? 57 : 89) + 3, z < 89 ? 9 : 10); else if (e.g) grid += cell(z, e.g, e.p); });
+    grid += '<span class="pt-gap" style="grid-column:3;grid-row:6">57–71</span><span class="pt-gap" style="grid-column:3;grid-row:7">89–103</span><span class="pt-sp" style="grid-row:8"></span>';
+    A.modal(`<div class="row between"><h3 style="margin:0">${I('grid')} Tableau périodique</h3><button class="btn sm" data-act="closeModal">Fermer</button></div>
+<p class="small muted" style="margin:4px 0 10px">Cliquez sur un élément pour le dessiner. Les métaux (fond grisé) ne reçoivent pas d’hydrogènes implicites ; utilisez ⊕ et ⊖ pour les charges des ions.</p>
+<input type="search" id="pt-q" placeholder="Rechercher : fer, Fe, 26…" aria-label="Rechercher un élément" style="max-width:280px;margin-bottom:10px">
+<div class="ptable" id="pt-grid">${grid}</div>`, {
+      wide: true, mount(bg) {
+        const g = bg.querySelector('#pt-grid');
+        g.addEventListener('click', (e) => { const b = e.target.closest('[data-pt]'); if (!b) return; A.closeModal(); pick(b.dataset.pt); });
+        bg.querySelector('#pt-q').addEventListener('input', (e) => { const v = e.target.value.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); A.$$('[data-pt]', g).forEach((b) => { const s = b.dataset.pt, n = C.EL[s].n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''), z = String(syms.indexOf(s) + 1); b.classList.toggle('dim', !!v && !(s.toLowerCase() === v || n.startsWith(v) || z === v)); }); });
+      }
+    });
   };
   A.act.pickMol = (el) => {
     const e = G.Compose.byId[el.dataset.id]; if (!e) return; const into = el.dataset.into; A.closeModal();
@@ -665,10 +777,10 @@ ${!canDep && A.can('travaux.corriger') ? '<a class="btn sm" href="#corrections">
       const upd = (m) => {
         if (!m.atoms.length) { info.innerHTML = '<h4>Molécule</h4><p class="muted small">La zone est vide. Choisissez un élément et cliquez dans la zone quadrillée.</p>'; return; }
         const c = C.counts(m), r = C.recognize(m) || G.Compose.identify(m), hv = m.atoms.length, h = (c.H || 0) - m.atoms.filter((a) => a.el === 'H').length; let smi = ''; try { smi = C.toSMILES(m); } catch (e) { smi = '—'; }
-        info.innerHTML = (r ? `<div class="recog">Molécule reconnue : ${esc(r.name)}</div>` : '') + valenceWarn(m) + `<h4>Propriétés calculées</h4><dl class="kv"><dt>Formule brute</dt><dd>${C.formulaHTML(c)}</dd><dt>Masse molaire</dt><dd>${C.fr(C.molarMass(c), 2)} g/mol</dd><dt>Atomes dessinés</dt><dd>${hv}</dd><dt>H ajoutés</dt><dd>${h}</dd><dt>Liaisons</dt><dd>${m.bonds.length}</dd></dl><p class="mini-h">SMILES</p><div class="row" style="gap:6px;flex-wrap:nowrap"><code style="flex:1;padding:6px 8px">${esc(smi)}</code><button class="iconbtn" style="width:36px;height:36px" id="ed-csmi" aria-label="Copier le SMILES">${I('copy', 16)}</button></div>`;
+        info.innerHTML = (r ? `<div class="recog">Molécule reconnue : ${esc(r.name)}</div>` : '') + valenceWarn(m) + `<h4>Propriétés calculées</h4><dl class="kv"><dt>Formule brute</dt><dd>${C.formulaHTML(c)}${C.totalCharge(m) ? '<sup>' + C.chargeTxt(C.totalCharge(m)) + '</sup>' : ''}</dd><dt>Masse molaire</dt><dd>${C.fr(C.molarMass(c), 2)} g/mol</dd><dt>Atomes dessinés</dt><dd>${hv}</dd><dt>H ajoutés</dt><dd>${h}</dd><dt>Liaisons</dt><dd>${m.bonds.length}</dd></dl><p class="mini-h">SMILES</p><div class="row" style="gap:6px;flex-wrap:nowrap"><code style="flex:1;padding:6px 8px">${esc(smi)}</code><button class="iconbtn" style="width:36px;height:36px" id="ed-csmi" aria-label="Copier le SMILES">${I('copy', 16)}</button></div>`;
         const b = document.getElementById('ed-csmi'); if (b) b.onclick = () => A.copy(smi, 'SMILES');
       };
-      const ed = new G.Editor2D(document.getElementById('ed'), { onChange: upd }); A.live.push(ed); A.cur2D = ed; bindTb2(ed, document.getElementById('tb2'));
+      const ed = new G.Editor2D(document.getElementById('ed'), { onChange: upd }); A.live.push(ed); A.cur2D = ed; bindTb2(ed, document.getElementById('tb2')); A.bindComposer();
       if (A.pending2D) { ed.load(A.pending2D, true); A.pending2D = null; } upd(ed.getMol());
       const molA = () => A.mol2DtoA(ed.getMol());
       document.getElementById('ed-3d').onclick = () => { const m = ed.getMol(); if (!m.atoms.length) { A.toast('Dessinez d’abord une molécule.'); return; } const adj = C.adjacency(m); if (m.atoms.some((a, i) => C.overValent(m, adj, i))) { A.toast('Corrigez d’abord les valences signalées en rouge.'); return; } A.pending3D = { mol: C.build3D(m), note: 'Molécule importée de l’atelier 2D : hydrogènes ajoutés et géométrie optimisée (champ de force simplifié).' }; A.go('atelier-3d'); };
@@ -677,7 +789,7 @@ ${!canDep && A.can('travaux.corriger') ? '<a class="btn sm" href="#corrections">
       document.getElementById('ed-png').onclick = () => A.dlMol2DImage(ed.getMol(), { display: ed.display, name: edName() });
       document.getElementById('ed-svg').onclick = () => A.dlMol2DImage(ed.getMol(), { display: ed.display, name: edName(), svg: true });
       document.getElementById('ed-cmol').onclick = () => { const m = ed.getMol(); if (!m.atoms.length) return A.toast('Rien à copier.'); A.copy(C.toMolfile(molA(), { name: (C.recognize(m) || {}).name || 'molecule' }), 'Fichier MOL'); };
-      document.getElementById('ed-imp').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { const t = await f.text(); const { mol, flat } = A.parseMolText(f.name, t); ed.load(flat ? A.molAto2D(mol) : C.to2D(mol)); A.toast('Fichier importé : ' + f.name); } catch (err) { A.toast(err.message); } e.target.value = ''; };
+      document.getElementById('ed-imp').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { const t = await f.text(); const { mol, flat } = A.parseMolText(f.name, t); ed.load(C.to2D(mol)); A.toast('Fichier importé : ' + f.name); } catch (err) { A.toast(err.message); } e.target.value = ''; };
       document.getElementById('ed-lib').onchange = (e) => { if (e.target.value) { ed.load(C.lib2D(e.target.value)); e.target.value = ''; } };
       document.getElementById('ed-save').onclick = () => { const m = ed.getMol(); if (!m.atoms.length) return A.toast('Rien à enregistrer.'); saveMy(document.getElementById('ed-name').value.trim() || (C.recognize(m) || {}).name || C.formulaText(C.counts(m)), '2d', m); };
     }
@@ -687,7 +799,7 @@ ${!canDep && A.can('travaux.corriger') ? '<a class="btn sm" href="#corrections">
   A.route(/^atelier-3d$/, () => ({
     title: 'Atelier 3D', html: head('Atelier 3D', 'Construisez, faites tourner et mesurez comme dans Avogadro, ou écrivez directement le composé. Glisser : tourner · Maj+glisser ou clic droit : déplacer · molette ou pincement : zoom.') + composerHTML('3d') + `
 <div class="toolbar" id="tb3" role="toolbar" aria-label="Outils 3D"><div class="seg" role="group" aria-label="Mode">${[['naviguer', 'Inspecter'], ['mesurer', 'Mesurer'], ['ajouter', 'Ajouter'], ['supprimer', 'Supprimer'], ['liaison', 'Liaison']].map(([k, t]) => `<button data-mode="${k}" class="${k === 'naviguer' ? 'on' : ''}">${t}</button>`).join('')}</div>
-<div class="seg els" id="els3" role="group" aria-label="Élément à ajouter">${ELS.map((e) => `<button data-el3="${e}" class="e-${e}${e === 'C' ? ' on' : ''}" title="${esc(C.EL[e].n)}">${e}</button>`).join('')}</div>
+<div class="seg els" id="els3" role="group" aria-label="Élément à ajouter">${ELS.map((e) => `<button data-el3="${e}" class="e-${e}${e === 'C' ? ' on' : ''}" title="${esc(C.EL[e].n)}">${e}</button>`).join('')}<button data-el3="" class="el-extra" hidden></button><button data-pt3="1" title="Tableau périodique : tous les éléments" aria-label="Ouvrir le tableau périodique">${I('grid', 16)}</button></div>
 <select id="st3" aria-label="Type d’affichage"><option value="bs">Boules et bâtons</option><option value="stick">Bâtons</option><option value="vdw">Sphères de van der Waals</option><option value="wire">Fil de fer</option></select>
 <span class="tb-sep"></span><button class="btn sm ok" id="opt3">${I('spin', 16)} Optimiser</button>
 <button class="iconbtn" data-v="fit" title="Recentrer" aria-label="Recentrer">${I('fit')}</button><button class="iconbtn" data-v="zin" aria-label="Zoom avant">${I('zin')}</button><button class="iconbtn" data-v="zout" aria-label="Zoom arrière">${I('zout')}</button><button class="iconbtn" data-v="clear" title="Vider" aria-label="Vider la scène">${I('trash')}</button></div>
@@ -701,7 +813,7 @@ ${!canDep && A.can('travaux.corriger') ? '<a class="btn sm" href="#corrections">
     mount() {
       const msg = document.getElementById('v3-msg'), info = document.getElementById('v3-info');
       const say = (t, cls) => { msg.innerHTML = t ? `<div class="alert ${cls || 'info'}" style="margin-top:0">${esc(t)}</div>` : ''; };
-      const v = new G.Viewer3D(document.getElementById('v3'), { onInfo: (h) => { info.innerHTML = h; }, onMsg: (t) => say(t, 'bad') }); A.live.push(v); A.cur3D = v;
+      const v = new G.Viewer3D(document.getElementById('v3'), { onInfo: (h) => { info.innerHTML = h; }, onMsg: (t) => say(t, 'bad') }); A.live.push(v); A.cur3D = v; A.bindComposer();
       const tb = document.getElementById('tb3'), els = document.getElementById('els3');
       const hints = { naviguer: 'Cliquez sur un atome pour afficher sa géométrie VSEPR, ses angles et ses longueurs de liaison.', mesurer: 'Cliquez sur 2 atomes (distance), 3 (angle) ou 4 (angle dièdre).', ajouter: 'Choisissez un élément puis cliquez sur un atome : le nouvel atome remplace un hydrogène. Dans une scène vide, cliquez pour placer le premier atome.', supprimer: 'Cliquez sur un atome pour le supprimer avec ses hydrogènes.', liaison: 'Cliquez sur une liaison pour passer de simple à double puis triple.' };
       const setMode = (md) => { v.setMode(md); A.$$('[data-mode]', tb).forEach((b) => b.classList.toggle('on', b.dataset.mode === md)); els.style.display = md === 'ajouter' ? '' : 'none'; say(hints[md]); };
@@ -709,6 +821,7 @@ ${!canDep && A.can('travaux.corriger') ? '<a class="btn sm" href="#corrections">
         const b = e.target.closest('button'); if (!b) return;
         if (b.dataset.mode) setMode(b.dataset.mode);
         if (b.dataset.el3) { v.el = b.dataset.el3; A.$$('[data-el3]', tb).forEach((x) => x.classList.toggle('on', x === b)); }
+        if (b.dataset.pt3) { A.periodicPicker(v.el, (sym) => { v.el = sym; A.showExtraEl(tb, sym, 'el3'); A.$$('[data-el3]', tb).forEach((x) => x.classList.toggle('on', x.dataset.el3 === sym)); }); return; }
         const a = b.dataset.v; if (a === 'fit') v.resetView(); if (a === 'zin') v.zoomBy(1.2); if (a === 'zout') v.zoomBy(1 / 1.2); if (a === 'clear') { v.setMolecule({ atoms: [], bonds: [] }); setMode('ajouter'); }
       });
       document.getElementById('st3').onchange = (e) => { v.style = e.target.value; v.fitScale(); v.render(); };
@@ -718,7 +831,7 @@ ${!canDep && A.can('travaux.corriger') ? '<a class="btn sm" href="#corrections">
       document.getElementById('o-lab').onchange = (e) => { v.labels = e.target.checked; v.render(); };
       document.getElementById('o-spin').onchange = (e) => { v.setSpin(e.target.checked); };
       document.getElementById('v3-lib').onchange = (e) => { const x = e.target.value; if (!x) return; const [t, k] = x.split(':'); v.setMolecule(t === 'r' ? C.REF3D[k]() : C.build3D(C.lib2D(k))); say(t === 'r' ? 'Géométrie de référence (valeurs expérimentales arrondies).' : 'Molécule construite depuis la 2D et optimisée (champ de force simplifié).'); e.target.value = ''; };
-      document.getElementById('v3-imp').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { const t = await f.text(); const { mol, flat } = A.parseMolText(f.name, t); v.setMolecule(flat ? C.build3D(A.molAto2D(mol)) : mol); say(flat ? 'Fichier 2D importé : hydrogènes ajoutés et géométrie optimisée.' : 'Fichier 3D importé : ' + f.name, 'ok'); } catch (err) { say(err.message, 'bad'); } e.target.value = ''; };
+      document.getElementById('v3-imp').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { const t = await f.text(); const { mol, flat } = A.parseMolText(f.name, t); v.setMolecule(flat ? C.build3D(C.to2D(mol)) : mol); say(flat ? 'Fichier 2D importé : hydrogènes ajoutés et géométrie optimisée.' : 'Fichier 3D importé : ' + f.name, 'ok'); } catch (err) { say(err.message, 'bad'); } e.target.value = ''; };
       const nm = () => A.slug(document.getElementById('v3-name').value || v.mol.name || C.formulaText(C.counts(v.mol, false)));
       document.getElementById('v3-exp').onclick = () => { if (!v.mol.atoms.length) return A.toast('Rien à exporter.'); const n = nm(), mol = C.toMolfile(v.mol, { name: n, d3: true }); A.download(n + '_3D.zip', A.zip([{ name: n + '.mol', data: mol }, { name: n + '.xyz', data: C.toXYZ(v.mol, n) }, { name: n + '.sdf', data: mol + '$$$$\n' }]), mol); };
       document.getElementById('v3-png').onclick = () => A.dlMol3DImage(v, { name: nm() });

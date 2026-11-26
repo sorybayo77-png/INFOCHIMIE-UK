@@ -13,7 +13,7 @@
     const display = o.display || 'semi', fs = 15, Lp = 48, ink = '#1d2630';
     const atoms = mol.atoms, bonds = mol.bonds, m = { atoms, bonds }, adj = C.adjacency(m), out = [], hl = [];
     const pts = [];
-    const labeled = (i) => { const a = atoms[i]; if (a.el !== 'C') return true; if (display !== 'topo') return true; return adj[i].length === 0; };
+    const labeled = (i) => { const a = atoms[i]; if (a.el !== 'C' || a.chg) return true; if (display !== 'topo') return true; return adj[i].length === 0; };
     const col = (el) => (C.EL[el] && C.EL[el].l) || ink;
     const line = (x1, y1, x2, y2) => out.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`);
     bonds.forEach((b) => {
@@ -52,6 +52,7 @@
       pts.push([x0, a.y - 11], [x0 + sw + hw + 4, a.y + 13]);
       if (left) labs.push(`<text x="${(a.x + sw / 2).toFixed(1)}" y="${y.toFixed(1)}" text-anchor="end" fill="${c}">H${sub}<tspan${hN > 1 ? ' dy="-4"' : ''}>${a.el}</tspan></text>`);
       else labs.push(`<text x="${(a.x - sw / 2).toFixed(1)}" y="${y.toFixed(1)}" text-anchor="start" fill="${c}">${a.el}${hN ? 'H' + sub : ''}</text>`);
+      if (a.chg) { const cx = left ? a.x + sw / 2 + 1 : a.x - sw / 2 + sw + hw + 1; labs.push(`<text x="${cx.toFixed(1)}" y="${(a.y - 4).toFixed(1)}" text-anchor="start" font-size="11" font-weight="700" fill="${ink}">${C.chargeTxt(a.chg)}</text>`); pts.push([cx + 14, a.y - 12]); }
     });
     const pad = o.pad == null ? 16 : o.pad;
     let x0 = Math.min(...pts.map((p) => p[0])) - pad, y0 = Math.min(...pts.map((p) => p[1])) - pad, x1 = Math.max(...pts.map((p) => p[0])) + pad, y1 = Math.max(...pts.map((p) => p[1])) + pad;
@@ -93,10 +94,8 @@
   // PDF
   // =====================================================================
   let pdfLoading = null;
-  const loadOne = (src) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => { s.remove(); rej(new Error('Chargement impossible : ' + src)); }; document.head.appendChild(s); });
-  // les bibliothèques PDF sont cherchées dans js/vendor/ (Firebase Hosting) puis à côté de la page (dépôt GitHub « à plat »)
-  const loadScript = async (file) => { let err; for (const src of ['js/vendor/' + file, 'vendor/' + file, file]) { try { await loadOne(src); return; } catch (e) { err = e; } } throw err; };
-  A.loadPDF = () => pdfLoading || (pdfLoading = Promise.all([G.jspdf ? null : loadScript('jspdf.umd.min.js'), G.CSA_PDF_FONTS ? null : loadScript('pdf-fonts.js')]).catch((e) => { pdfLoading = null; throw e; }));
+  const loadScript = (src) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Chargement impossible : ' + src)); document.head.appendChild(s); });
+  A.loadPDF = () => pdfLoading || (pdfLoading = Promise.all([G.jspdf ? null : loadScript('js/vendor/jspdf.umd.min.js'), G.CSA_PDF_FONTS ? null : loadScript('js/vendor/pdf-fonts.js')]).catch((e) => { pdfLoading = null; throw e; }));
 
   const UI_COL = { '--panel': '#fff', '--panel2': '#f3f6fa', '--line': '#d9e0e8', '--ink': '#14202c', '--muted': '#5a6776', '--blue': '#0b5cab', '--orange': '#e8731c', '--canvas': '#fff', '--e-O': '#d61a1a', '--e-N': '#2747d6', '--green': '#1d8f4e', '--blue-s': '#e3eefa', '--line2': '#e8edf2' };
   A.svgForPrint = (svg) => svg.replace(/var\((--[a-zA-Z0-9-]+)\)/g, (_, v) => UI_COL[v] || '#333');
