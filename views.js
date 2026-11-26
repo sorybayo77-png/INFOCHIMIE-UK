@@ -177,7 +177,9 @@ ${(etu ? dStu : dEns) ? `<hr><h4>Compte de démonstration</h4><div class="demo-a
     if (fl.until > Date.now()) return err('Trop de tentatives. Réessayez dans ' + Math.ceil((fl.until - Date.now()) / 1000) + ' secondes.');
     if (!idf || !pw) return err('Renseignez votre ' + (kind === 'etudiant' ? 'matricule' : kind === 'admin' ? 'code identifiant' : 'adresse e-mail') + ' et votre mot de passe.');
     await A.lookupUser(kind, idf);
-    const u = A.findUser(kind, idf);
+    let u = A.findUser(kind, idf);
+    // compte principal absent ou masqué par un ancien compte du même code : il est rétabli avant la vérification
+    if (kind === 'admin' && idf.toUpperCase() === A.PRINCIPAL_CODE && (!u || u.id !== 'u-principal')) { await A.ensurePrincipalCloud(); u = A.findUser(kind, idf); }
     if (!u || !A.checkPw(u, pw)) {
       fl.n++; if (fl.n >= 5) { fl.until = Date.now() + 60000; fl.n = 0; } fails[key] = fl;
       if (kind === 'admin') A.DB.logs.unshift({ date: Date.now(), uid: u ? u.id : null, act: 'Échec de connexion administrateur', det: idf.toUpperCase() });

@@ -199,7 +199,7 @@ ${st.map((s) => { const x = studentStats(s); return `<tr><td><code>${esc(s.matri
   // =========================================================== UTILISATEURS
   // codes générés automatiquement à chaque création d'administrateur : BAGLAM-002, BAGLAM-003…
   // numéro jamais réutilisé, même après la suppression d'un compte (compteur conservé dans la configuration)
-  const nextAdmCode = () => { let n = Math.max(1, A.DB.admSeq | 0); A.DB.users.forEach((a) => { const m = String(a.code || '').toUpperCase().match(/^BAGLAM-(\d+)$/); if (m) n = Math.max(n, +m[1]); }); return 'BAGLAM-' + String(n + 1).padStart(3, '0'); };
+  const nextAdmCode = () => A.nextAdminCode();
   A.nextAdmCode = nextAdmCode;
   const activeAdmins = () => A.admins().filter((a) => a.active !== false);
   const amPrincipal = () => A.isPrincipal(A.me());

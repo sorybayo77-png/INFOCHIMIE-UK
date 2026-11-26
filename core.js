@@ -111,13 +111,29 @@
   const PRINCIPAL_HASH = 'pbkdf2$200000$8906d87c0de8182947ceb45294b00c04$2cd38a54aff17e64a795c85da5a3e10c3f1c96b72b02b8ceaec3f58c0a9e502b';
   A.principalRecord = () => ({ id: 'u-principal', name: 'Administrateur principal', role: 'admin', code: A.PRINCIPAL_CODE, principal: true, titre: 'Administrateur principal', dept: 'Administration de la plateforme', pw: PRINCIPAL_HASH, active: true, created: Date.now() });
   A.isPrincipal = (u) => !!(u && u.role === 'admin' && u.principal && String(u.code || '').toUpperCase() === A.PRINCIPAL_CODE);
-  // garantit un seul administrateur principal, toujours actif ; renvoie true si la base a été modifiée
+  // prochain code administrateur libre (BAGLAM-002, BAGLAM-003…), jamais réutilisé grâce au compteur admSeq
+  A.nextAdminCode = (D = A.DB) => { let n = Math.max(1, D.admSeq | 0); (D.users || []).forEach((a) => { const m = String(a.code || '').toUpperCase().match(/^BAGLAM-(\d+)$/); if (m) n = Math.max(n, +m[1]); }); return 'BAGLAM-' + String(n + 1).padStart(3, '0'); };
+  // un autre compte qui portait le code principal (créé ou renommé dans une version précédente) reçoit un nouveau code
+  const recode = (D, u, code) => {
+    const old = u.code; u.oldCode = old; u.code = code; D.admSeq = Math.max(D.admSeq | 0, +code.slice(7) || 0); delete u.principal;
+    (D.logs = D.logs || []).unshift({ date: Date.now(), uid: null, act: 'Code identifiant réattribué', det: u.name + ' : ' + old + ' → ' + code + ' (code réservé à l’administrateur principal)' });
+    (D.notifs = D.notifs || []).unshift({ id: A.uid('n-'), uid: u.id, text: 'Le code ' + old + ' est désormais réservé à l’administrateur principal. Votre nouveau code identifiant est ' + code + ' (mot de passe inchangé).', link: 'profil', date: Date.now(), read: false });
+  };
+  // le compte principal est la fiche « u-principal » : toujours présente, active, avec le code BAGLAM-001 ; renvoie true si la base a été modifiée
   A.ensurePrincipal = (D) => {
-    let changed = false, p = (D.users || []).find((u) => u.role === 'admin' && String(u.code || '').toUpperCase() === A.PRINCIPAL_CODE);
+    let changed = false; D.users = D.users || [];
+    let p = D.users.find((u) => u.id === 'u-principal');
     if (!p) { p = A.principalRecord(); D.users.unshift(p); changed = true; }
+    if (p.role !== 'admin') { p.role = 'admin'; changed = true; }
+    if (String(p.code || '').toUpperCase() !== A.PRINCIPAL_CODE) { p.code = A.PRINCIPAL_CODE; changed = true; }
     if (!p.principal) { p.principal = true; changed = true; }
     if (p.active === false) { p.active = true; changed = true; }
-    D.users.forEach((u) => { if (u !== p && u.principal) { delete u.principal; changed = true; } });
+    if (!p.pw) { p.pw = PRINCIPAL_HASH; changed = true; }
+    D.users.forEach((u) => {
+      if (u === p) return;
+      if (String(u.code || '').toUpperCase() === A.PRINCIPAL_CODE) { recode(D, u, A.nextAdminCode(D)); changed = true; }
+      if (u.principal) { delete u.principal; changed = true; }
+    });
     // anciens comptes administrateurs de démonstration encore protégés par le mot de passe public : désactivés
     D.users.forEach((u) => { if (u !== p && u.role === 'admin' && u.active !== false && u.pwDefault && /^ADM-00[12]$/i.test(String(u.code || '')) && A.verifyHash && A.verifyHash(u.pw, A.DEMO_PW, u.id)) { u.active = false; u.demoLocked = true; changed = true; } });
     return changed;
@@ -235,6 +251,7 @@
   A.findUser = (kind, idf) => {
     const low = String(idf || '').trim().toLowerCase(); if (!low) return null;
     const f = kind === 'etudiant' ? 'matricule' : kind === 'admin' ? 'code' : 'email';
+    if (kind === 'admin' && low === A.PRINCIPAL_CODE.toLowerCase()) { const p = A.DB.users.find((u) => u.id === 'u-principal'); if (p) return p; }
     return A.DB.users.find((u) => u.role === kind && String(u[f] || '').toLowerCase() === low) || null;
   };
   A.findAny = (idf) => A.findUser('etudiant', idf) || A.findUser('enseignant', idf) || A.findUser('admin', idf);
@@ -244,7 +261,14 @@
   A.ensurePrincipalCloud = async () => {
     const found = await A.lookupUser('admin', A.PRINCIPAL_CODE);
     if (found === false) return; // base injoignable : ne rien créer à l'aveugle
-    if (A.ensurePrincipal(A.DB)) A.save();
+    // en ligne, un visiteur ne voit pas tous les comptes : le nouveau code d'un compte en conflit est vérifié dans la base
+    const others = A.DB.users.filter((u) => u.id !== 'u-principal' && String(u.code || '').toUpperCase() === A.PRINCIPAL_CODE);
+    for (const u of others) {
+      let n = Math.max(1, A.DB.admSeq | 0, ...A.DB.users.map((x) => +(String(x.code || '').toUpperCase().match(/^BAGLAM-(\d+)$/) || [0, 0])[1])), code = '';
+      for (let k = 0; k < 60; k++) { n++; code = 'BAGLAM-' + String(n).padStart(3, '0'); if ((await A.lookupUser('admin', code)) === false) return; if (!A.DB.users.some((x) => String(x.code || '').toUpperCase() === code)) break; }
+      recode(A.DB, u, code);
+    }
+    if (A.ensurePrincipal(A.DB) || others.length) A.save();
   };
   A.admins = () => A.DB.users.filter((u) => u.role === 'admin');
   A.lastEval = (uid) => A.DB.evals.filter((e) => e.uid === uid).sort((a, b) => b.date - a.date)[0] || null;
