@@ -5,28 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>INFOCHIMIE UK</title>
 <meta name="description" content="INFOCHIMIE UK, plateforme pédagogique d’informatique appliquée à la chimie : dessiner les structures chimiques en 2D avec ChemSketch et les modéliser en 3D avec Avogadro.">
-<link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="apple-touch-icon" href="img/logo-universite-kindia.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="logo-universite-kindia.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@500;600&family=Source+Sans+3:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
 <div id="app"><div class="auth"><p class="muted">Chargement de la plateforme…</p></div></div>
 <noscript><p style="padding:20px">Cette plateforme nécessite JavaScript.</p></noscript>
 <script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;const t=c.closest('table');c.dataset.l=(t&&t.rows[0]&&t.rows[0].cells[i])?t.rows[0].cells[i].textContent:''}}).observe(document,{childList:true,subtree:true})</script>
-<script src="js/firebase-config.js"></script>
-<script src="js/chem.js"></script>
-<script src="js/compose.js"></script>
-<script src="js/pubchem.js"></script>
-<script src="js/widgets.js"></script>
-<script src="js/content.js"></script>
-<script src="js/core.js"></script>
-<script src="js/cloud.js"></script>
-<script src="js/export.js"></script>
-<script src="js/views.js"></script>
-<script src="js/vitrine.js"></script>
-<script src="js/manage.js"></script>
+<script src="firebase-config.js"></script>
+<script src="chem.js"></script>
+<script src="compose.js"></script>
+<script src="pubchem.js"></script>
+<script src="widgets.js"></script>
+<script src="content.js"></script>
+<script src="core.js"></script>
+<script src="cloud.js"></script>
+<script src="export.js"></script>
+<script src="views.js"></script>
+<script src="vitrine.js"></script>
+<script src="manage.js"></script>
 </body>
 </html>

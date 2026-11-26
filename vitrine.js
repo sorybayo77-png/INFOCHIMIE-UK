@@ -33,7 +33,7 @@
 
   // seules les images du dossier img/ et les images JPEG/PNG/WebP intégrées sont affichées
   const SAFE = /^(img\/[\w.-]+\.(jpe?g|png|webp)|data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+)$/;
-  const src = (s) => (SAFE.test(String(s || '')) ? s : 'img/logo-universite-kindia.png');
+  const src = (s) => A.asset(SAFE.test(String(s || '')) ? s : 'img/logo-universite-kindia.png');
   const posOf = (p) => (/^[a-z]+ \d{1,3}%$/.test(String(p || '')) ? p : 'center 25%');
   const POS = [['center 12%', 'Haut'], ['center 25%', 'Haut-centre'], ['center 40%', 'Centre'], ['center 60%', 'Bas-centre'], ['center 80%', 'Bas']];
   const DEPT = 'Département de Chimie';
@@ -92,9 +92,9 @@ ${s.length > 1 ? `<div class="show-ctl">${s.map((x, i) => `<button class="show-d
 <div class="tgrid">${list.slice(0, max).map(card).join('')}</div></div></section>`;
   };
   A.vitCampus = () => `<section class="band campus" aria-label="Campus de l’Université de Kindia"><div class="band-in"><div class="campus-grid">
-<figure><img src="img/campus-batiment.jpg" alt="Bâtiment du campus de l’Université de Kindia" loading="lazy" decoding="async"></figure>
-<figure><img src="img/campus-pole-vie.jpg" alt="Le « Pôle vie » du campus de l’Université de Kindia" loading="lazy" decoding="async"></figure>
-<div class="campus-txt"><img src="img/logo-universite-kindia.png" alt="" width="72" height="72"><h2>Université de Kindia</h2><p>INFOCHIMIE UK est la plateforme d’informatique appliquée à la chimie du ${DEPT} : dessin des structures en 2D, modélisation en 3D, travaux pratiques et évaluations en ligne.</p></div>
+<figure><img src="${A.asset('img/campus-batiment.jpg')}" alt="Bâtiment du campus de l’Université de Kindia" loading="lazy" decoding="async"></figure>
+<figure><img src="${A.asset('img/campus-pole-vie.jpg')}" alt="Le « Pôle vie » du campus de l’Université de Kindia" loading="lazy" decoding="async"></figure>
+<div class="campus-txt"><img src="${A.asset('img/logo-universite-kindia.png')}" alt="" width="72" height="72"><h2>Université de Kindia</h2><p>INFOCHIMIE UK est la plateforme d’informatique appliquée à la chimie du ${DEPT} : dessin des structures en 2D, modélisation en 3D, travaux pratiques et évaluations en ligne.</p></div>
 </div></div></section>`;
 
   A.route(/^enseignants$/, () => {

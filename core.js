@@ -3,6 +3,11 @@
   'use strict';
   const C = G.Chem, K = G.CONTENT;
   const A = G.APP = { views: {}, act: {}, form: {}, chg: {}, live: [], timers: [] };
+  // fichiers rangés en dossiers (css/, js/, img/ — Firebase Hosting) ou tous « à plat » à la racine (GitHub Pages) :
+  // la disposition est déduite de l'adresse de ce script, les chemins des images et des scripts s'y adaptent.
+  const here = (G.document && G.document.currentScript && G.document.currentScript.src) || '';
+  A.FLAT = !!here && !/\/js\/core\.js(\?|#|$)/.test(here);
+  A.asset = (p) => (A.FLAT ? String(p).replace(/^(img|css|js\/vendor|js)\//, '') : p);
 
   // ---------- utilitaires ----------
   const esc = A.esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -378,7 +383,7 @@
   };
   A.topbar = (u, pub) => {
     const unread = u ? A.DB.notifs.filter((n) => n.uid === u.id && !n.read).length : 0;
-    return `<header class="topbar"><a class="brand" href="#${u ? 'tableau' : 'accueil'}"><img class="uk-logo" src="img/logo-universite-kindia.png" width="44" height="44" alt="Université de Kindia"><span class="bt">INFOCHIMIE UK<small>Université de Kindia · Informatique appliquée à la chimie</small></span></a><span class="sp"></span>${A.cloudPill ? A.cloudPill() : ''}` +
+    return `<header class="topbar"><a class="brand" href="#${u ? 'tableau' : 'accueil'}"><img class="uk-logo" src="${A.asset('img/logo-universite-kindia.png')}" width="44" height="44" alt="Université de Kindia"><span class="bt">INFOCHIMIE UK<small>Université de Kindia · Informatique appliquée à la chimie</small></span></a><span class="sp"></span>${A.cloudPill ? A.cloudPill() : ''}` +
       (u ? `<button class="iconbtn" data-act="notifs" aria-label="Notifications (${unread} non lues)">${A.icon('bell', 22)}${unread ? `<span class="dot">${unread}</span>` : ''}</button>
       <div class="userchip"><span class="avatar">${esc(A.initials(u.name))}</span><span class="who">${esc(u.name)}<small>${A.roleName[u.role]}</small></span></div>
       ${pub ? '<a class="btn sm pri" href="#tableau">Mon espace</a>' : ''}<button class="iconbtn" data-act="logout" aria-label="Se déconnecter" title="Se déconnecter">${A.icon('logout', 22)}</button>`

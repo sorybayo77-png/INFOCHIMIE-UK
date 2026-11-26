@@ -95,7 +95,7 @@
   // =====================================================================
   let pdfLoading = null;
   const loadScript = (src) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Chargement impossible : ' + src)); document.head.appendChild(s); });
-  A.loadPDF = () => pdfLoading || (pdfLoading = Promise.all([G.jspdf ? null : loadScript('js/vendor/jspdf.umd.min.js'), G.CSA_PDF_FONTS ? null : loadScript('js/vendor/pdf-fonts.js')]).catch((e) => { pdfLoading = null; throw e; }));
+  A.loadPDF = () => pdfLoading || (pdfLoading = Promise.all([G.jspdf ? null : loadScript(A.asset('js/vendor/jspdf.umd.min.js')), G.CSA_PDF_FONTS ? null : loadScript(A.asset('js/vendor/pdf-fonts.js'))]).catch((e) => { pdfLoading = null; throw e; }));
 
   const UI_COL = { '--panel': '#fff', '--panel2': '#f3f6fa', '--line': '#d9e0e8', '--ink': '#14202c', '--muted': '#5a6776', '--blue': '#0b5cab', '--orange': '#e8731c', '--canvas': '#fff', '--e-O': '#d61a1a', '--e-N': '#2747d6', '--green': '#1d8f4e', '--blue-s': '#e3eefa', '--line2': '#e8edf2' };
   A.svgForPrint = (svg) => svg.replace(/var\((--[a-zA-Z0-9-]+)\)/g, (_, v) => UI_COL[v] || '#333');

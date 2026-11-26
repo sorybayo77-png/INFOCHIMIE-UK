@@ -112,6 +112,16 @@ MISE EN LIGNE (une seule fois)
 - Pour reprendre les données d'une ancienne version : dans l'ancienne version, Évaluations et
   sauvegarde › Exporter une sauvegarde ; dans la nouvelle, Restaurer (administrateur principal).
 
+PUBLICATION SUR GITHUB PAGES (paquet INFOCHIMIE_UK_GitHub.zip)
+- Ce paquet contient les mêmes fichiers, tous « à plat » (aucun dossier) : index.html, app.css,
+  les fichiers .js et les images. C'est la disposition à utiliser quand on envoie les fichiers
+  par la page web de GitHub (« Add file › Upload files »), qui ne garde pas les dossiers.
+- Envoyez TOUS les fichiers du paquet à la racine du dépôt (ils remplacent les anciens), validez
+  (« Commit changes »), attendez une à deux minutes, puis rechargez la page avec Ctrl+F5.
+- Ne mélangez pas les deux paquets : le paquet Firebase (dossiers css/, js/, img/ dans public/)
+  ne fonctionne pas s'il est envoyé à plat sur GitHub, car index.html y cherche css/app.css et js/.
+- La plateforme reconnaît d'elle-même la disposition (dossiers ou à plat) pour les images et les PDF.
+
 MISES À JOUR DU SITE
 - Modifiez les fichiers du dossier public, puis relancez « firebase deploy ».
 - La configuration du projet se trouve dans public/js/firebase-config.js

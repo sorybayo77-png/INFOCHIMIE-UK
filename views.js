@@ -83,7 +83,7 @@ ${badge(470, 33, 1)}${badge(570, 56, 2)}${badge(222, 88, 3)}${badge(222, 238, 4)
       title: 'Accueil', html: `
 <section class="hero hero-home"><div class="hero-deco" aria-hidden="true"><span></span><span></span><span></span></div><div class="hero-in">
 <div class="hero-txt">
-<span class="badge hero-badge"><img src="img/logo-universite-kindia.png" alt="" width="22" height="22"> Université de Kindia · Département de Chimie</span>
+<span class="badge hero-badge"><img src="${A.asset('img/logo-universite-kindia.png')}" alt="" width="22" height="22"> Université de Kindia · Département de Chimie</span>
 <h1 style="margin-top:14px">INFOCHIMIE UK</h1>
 <p class="lead"><b>Cours : ChemSketch et Avogadro, dessiner les structures 2D et 3D.</b> Apprenez à dessiner les molécules, à les construire en trois dimensions et à comprendre leur géométrie : cours illustrés, ateliers interactifs, recherche de n’importe quel composé, travaux pratiques avec dépôt et évaluations corrigées.</p>
 <div class="row">${u ? '<a class="btn pri" href="#tableau">Accéder à mon espace</a>' : '<a class="btn pri" href="#inscription">Créer un compte étudiant</a><a class="btn" href="#connexion">Se connecter</a>'}</div>
