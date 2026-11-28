@@ -81,16 +81,9 @@ ${badge(470, 33, 1)}${badge(570, 56, 2)}${badge(222, 88, 3)}${badge(222, 238, 4)
     const adm = A.admins().filter((a) => a.active !== false && !/^administrateur/i.test(a.name));
     return {
       title: 'Accueil', html: `
-<section class="hero hero-home"><div class="hero-deco" aria-hidden="true"><span></span><span></span><span></span></div><div class="hero-in">
-<div class="hero-txt">
-<span class="badge hero-badge"><img src="${A.asset('img/logo-universite-kindia.png')}" alt="" width="22" height="22"> Université de Kindia · Département de Chimie</span>
-<h1 style="margin-top:14px">INFOCHIMIE UK</h1>
-<p class="lead"><b>Cours : ChemSketch et Avogadro, dessiner les structures 2D et 3D.</b> Apprenez à dessiner les molécules, à les construire en trois dimensions et à comprendre leur géométrie : cours illustrés, ateliers interactifs, recherche de n’importe quel composé, travaux pratiques avec dépôt et évaluations corrigées.</p>
-<div class="row">${u ? '<a class="btn pri" href="#tableau">Accéder à mon espace</a>' : '<a class="btn pri" href="#inscription">Créer un compte étudiant</a><a class="btn" href="#connexion">Se connecter</a>'}</div>
-<div class="hero-stats"><div><b>${K.modules.length}</b><span>modules</span></div><div><b>${nLessons()}</b><span>leçons</span></div><div><b>${K.tps.length}</b><span>travaux pratiques</span></div><div><b>${nQuestions()}</b><span>questions d’évaluation</span></div></div>
-<p class="hero-credit">Développée par <b>M. Alhouseny CISSE</b> et son assistant <b>Sory BAGAYOKO</b></p>
-</div>
-${A.vitHero()}
+<section class="hero-banner"><div class="hero-banner-in">
+<img src="${A.asset('img/banniere-infochimie-uk.jpg')}" width="1759" height="894" alt="INFOCHIMIE UK, Université de Kindia, Informatique appliquée à la chimie. Apprendre, comprendre, innover. Cours : ChemSketch et Avogadro, dessiner les structures 2D et 3D. Cours en ligne, modélisation 3D, évaluations corrigées, attestation de formation. Une formation de qualité pour une expertise en chimie numérique." fetchpriority="high" decoding="async">
+<a class="hero-banner-cta" href="#cours" aria-label="Accéder aux cours" title="Accéder aux cours"></a>
 </div></section>
 ${A.vitHommage()}
 <section class="band"><div class="band-in"><h2>Un parcours en sept modules</h2><p class="muted" style="max-width:70ch">Des notions de base à la modélisation 3D, chaque module associe une leçon, des démonstrations interactives et un test corrigé.</p><div class="path">${mods}</div></div></section>
@@ -200,7 +193,7 @@ ${(etu ? dStu : dEns) ? `<hr><h4>Compte de démonstration</h4><div class="demo-a
   };
 
   // ---------- inscription des étudiants ----------
-  const FILIERES = ['Licence 1 Sciences et technologies', 'Licence 2 Chimie', 'Licence 3 Chimie', 'Licence 3 Chimie analytique', 'Licence 3 Chimie organique', 'Master Chimie', 'Autre formation'];
+  const FILIERES = ['Licence 1 Chimie','Licence 2 Chimie', 'Licence 3 Chimie', 'Licence 3 Chimie analytique', 'Licence 3 Chimie organique', 'Master Chimie', 'Autre formation'];
   A.FILIERES = FILIERES;
   A.route(/^inscription$/, () => ({
     title: 'Inscription', html: `<div class="auth"><div class="card formcard" style="width:100%;max-width:520px">
