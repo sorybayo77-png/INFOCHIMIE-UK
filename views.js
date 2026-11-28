@@ -112,7 +112,7 @@ ${A.vitCatalogueBand()}
 ${A.vitCampus()}
 ${adm.length ? `<section class="band alt"><div class="band-in"><h2>Administration de la plateforme</h2><p class="muted" style="max-width:70ch">Les administrateurs gèrent les comptes, contrôlent l’évolution de chaque étudiant et attribuent les notes d’évolution.</p>
 <div class="grid g3">${adm.map((a) => `<div class="card row" style="flex-wrap:nowrap;gap:14px"><span class="avatar" style="width:52px;height:52px;font-size:18px">${esc(A.initials(a.name))}</span><div><h3 style="margin:0;font-size:18px">${esc(a.name)}</h3><span class="muted small">${esc(A.adminTitle(a))}</span></div></div>`).join('')}</div></div></section>` : ''}
-<footer class="footer"><div class="band-in" style="max-width:1240px;margin:0 auto">INFOCHIMIE UK — Université de Kindia, Département de Chimie. ChemSketch est un logiciel d’ACD/Labs ; Avogadro est un projet libre ; les données en ligne des composés proviennent de PubChem (NCBI). Cette plateforme n’est affiliée à aucun de ces éditeurs.</div></footer>`,
+<footer class="footer"><div class="band-in" style="max-width:1240px;margin:0 auto">INFOCHIMIE UK est une plateforme indépendante qui utilise ou référence des outils et des données scientifiques existants pour faciliter le travail des étudiants et des chercheurs en chimie.</div></footer>`,
       mount() {
         A.vitMountHero();
         const host = document.getElementById('hero-v'); const name = document.getElementById('hero-name');
